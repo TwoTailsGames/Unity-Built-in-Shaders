@@ -33,7 +33,7 @@ Shader "Hidden/Internal-GUIRoundedRect"
     uniform float4 _MainTex_ST;
     uniform float4x4 unity_GUIClipTextureMatrix;
 
-    uniform float _CornerRadius;
+    uniform float _CornerRadiuses[4];
     uniform float _BorderWidths[4];
     uniform float _Rect[4];
 
@@ -84,9 +84,7 @@ Shader "Hidden/Internal-GUIRoundedRect"
         half4 col = tex2D(_MainTex, i.texcoord) * i.color;
         float2 p = i.pos.xy;
 
-        float2 center = float2(_Rect[0]+_CornerRadius, _Rect[1]+_CornerRadius);
-
-        float cornerRadius2 = _CornerRadius * 2.0f;
+        float cornerRadius2 = _CornerRadiuses[0] * 2.0f;
         float middleWidth = _Rect[2] - cornerRadius2;
         float middleHeight = _Rect[3] - cornerRadius2;
 
@@ -96,20 +94,28 @@ Shader "Hidden/Internal-GUIRoundedRect"
         float bw1 = _BorderWidths[0];
         float bw2 = _BorderWidths[1];
 
+        int radiusIndex = 0;
+        if (xIsLeft)
+            radiusIndex = yIsTop ? 0 : 3;
+        else
+            radiusIndex = yIsTop ? 1 : 2;
+
+        float activeRadius = _CornerRadiuses[radiusIndex];
+        float2 center = float2(_Rect[0]+activeRadius, _Rect[1]+activeRadius);
+
         if (!xIsLeft)
         {
-            center.x += middleWidth;
+            center.x = (_Rect[0]+_Rect[2]-activeRadius);
             bw1 = _BorderWidths[2];
         }
-
         if (!yIsTop)
         {
-            center.y += middleHeight;
+            center.y = (_Rect[1]+_Rect[3]-activeRadius);
             bw2 = _BorderWidths[3];
         }
 
         bool isInCorner = (xIsLeft ? p.x <= center.x : p.x >= center.x) && (yIsTop ? p.y <= center.y : p.y >= center.y);
-        col.a *= isInCorner ? GetCornerAlpha(p, center, bw1, bw2, _CornerRadius, pixelScale) : 1.0f;
+        col.a *= isInCorner ? GetCornerAlpha(p, center, bw1, bw2, activeRadius, pixelScale) : 1.0f;
 
         bool isPointInCenter = IsPointInside(p, float4(_Rect[0]+_BorderWidths[0], _Rect[1]+_BorderWidths[1], _Rect[2]-(_BorderWidths[0]+_BorderWidths[2]), _Rect[3]-(_BorderWidths[1]+_BorderWidths[3])));
         half middleAlpha = isPointInCenter ? 0.0f : col.a;

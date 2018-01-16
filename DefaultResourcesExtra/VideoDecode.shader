@@ -17,6 +17,7 @@ Shader "Hidden/VideoDecode"
         sampler2D _SecondTex;
         sampler2D _ThirdTex;
         float  _AlphaParam;
+        float4 _RightEyeUVOffset;
         float4 _MainTex_TexelSize;
         float4 _MainTex_ST;
 
@@ -43,7 +44,7 @@ Shader "Hidden/VideoDecode"
         {
             v2f o;
             o.vertex = UnityObjectToClipPos(v.vertex);
-            o.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
+            o.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex) + unity_StereoEyeIndex * _RightEyeUVOffset.xy;
             return o;
         }
 

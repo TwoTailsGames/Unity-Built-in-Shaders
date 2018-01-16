@@ -41,13 +41,6 @@ Shader "Nature/Terrain/Standard" {
         #include "UnityPBSLighting.cginc"
 
         #pragma multi_compile __ _TERRAIN_NORMAL_MAP
-        #if defined(SHADER_API_D3D9) && defined(SHADOWS_SCREEN) && defined(LIGHTMAP_ON) && defined(DIRLIGHTMAP_COMBINED) && defined(DYNAMICLIGHTMAP_ON) && defined(SHADOWS_SHADOWMASK) && defined(_TERRAIN_NORMAL_MAP) && defined(UNITY_SPECCUBE_BLENDING)
-            // TODO : On d3d9 17 samplers would be used when : defined(SHADOWS_SCREEN) && defined(LIGHTMAP_ON) && defined(DIRLIGHTMAP_COMBINED) && defined(DYNAMICLIGHTMAP_ON) && defined(SHADOWS_SHADOWMASK) && defined(_TERRAIN_NORMAL_MAP) && defined(UNITY_SPECCUBE_BLENDING)
-            // In that case it would be probably acceptable to undef UNITY_SPECCUBE_BLENDING however at the moment (10/2/2016) we can't undef UNITY_SPECCUBE_BLENDING or other platform defines. CGINCLUDE being added after "Lighting.cginc".
-            // For now, remove _TERRAIN_NORMAL_MAP in this case.
-            #undef _TERRAIN_NORMAL_MAP
-            #define DONT_USE_TERRAIN_NORMAL_MAP // use it to initialize o.Normal to (0,0,1) because the surface shader analysis still see this shader writes to per-pixel normal.
-        #endif
 
         #define TERRAIN_STANDARD_SHADER
         #define TERRAIN_SURFACE_OUTPUT SurfaceOutputStandard
@@ -68,9 +61,6 @@ Shader "Nature/Terrain/Standard" {
             half weight;
             fixed4 mixedDiffuse;
             half4 defaultSmoothness = half4(_Smoothness0, _Smoothness1, _Smoothness2, _Smoothness3);
-            #ifdef DONT_USE_TERRAIN_NORMAL_MAP
-                o.Normal = fixed3(0, 0, 1);
-            #endif
             SplatmapMix(IN, defaultSmoothness, splat_control, weight, mixedDiffuse, o.Normal);
             o.Albedo = mixedDiffuse.rgb;
             o.Alpha = weight;

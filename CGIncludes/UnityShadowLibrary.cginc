@@ -68,19 +68,7 @@ inline fixed UnitySampleShadowmap (float4 shadowCoord)
                 shadows.z = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[2]);
                 shadows.w = UNITY_SAMPLE_SHADOW(_ShadowMapTexture, coord + _ShadowOffsets[3]);
                 shadow = dot(shadows, 0.25f);
-            // D3D9 : 4-tap linear comparison filter
-            #elif defined (SHADER_API_D3D9)
-                // HLSL for D3D9, when modifying the shadow UV coordinate, really wants to do
-                // some funky swizzles, assuming that Z coordinate is unused in texture sampling.
-                // So force it to do projective texture reads here, with .w being one.
-                float4 coord = shadowCoord / shadowCoord.w;
-                half4 shadows;
-                shadows.x = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture, coord + _ShadowOffsets[0]);
-                shadows.y = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture, coord + _ShadowOffsets[1]);
-                shadows.z = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture, coord + _ShadowOffsets[2]);
-                shadows.w = UNITY_SAMPLE_SHADOW_PROJ(_ShadowMapTexture, coord + _ShadowOffsets[3]);
-                shadow = dot(shadows, 0.25f);
-            // Everything else (not mobile/not d3d9/not xbox360)
+            // Everything else
             #else
                 float3 coord = shadowCoord.xyz / shadowCoord.w;
                 float3 receiverPlaneDepthBias = UnityGetReceiverPlaneDepthBias(coord, 1.0f);
@@ -110,36 +98,70 @@ inline fixed UnitySampleShadowmap (float4 shadowCoord)
 
 #if defined (SHADOWS_CUBE)
 
-samplerCUBE_float _ShadowMapTexture;
-inline float SampleCubeDistance (float3 vec)
-{
-    // DX9 with SM2.0, and DX11 FL 9.x do not have texture LOD sampling.
-    #if ((SHADER_TARGET < 25) && defined(SHADER_API_D3D9)) || defined(SHADER_API_D3D11_9X)
-        return UnityDecodeCubeShadowDepth(texCUBE(_ShadowMapTexture, vec));
-    #else
-        return UnityDecodeCubeShadowDepth(texCUBElod(_ShadowMapTexture, float4(vec, 0)));
-    #endif
-}
+#if defined(SHADOWS_CUBE_IN_DEPTH_TEX)
+    UNITY_DECLARE_TEXCUBE_SHADOWMAP(_ShadowMapTexture);
+#else
+    UNITY_DECLARE_TEXCUBE(_ShadowMapTexture);
+    inline float SampleCubeDistance (float3 vec)
+    {
+        // DX9 with SM2.0, and DX11 FL 9.x do not have texture LOD sampling.
+        #if ((SHADER_TARGET < 25) && defined(SHADER_API_D3D9)) || defined(SHADER_API_D3D11_9X)
+            return UnityDecodeCubeShadowDepth(texCUBE(_ShadowMapTexture, vec));
+        #else
+            return UnityDecodeCubeShadowDepth(UNITY_SAMPLE_TEXCUBE_LOD(_ShadowMapTexture, vec, 0));
+        #endif
+    }
+
+#endif
+
 inline half UnitySampleShadowmap (float3 vec)
 {
-    float mydist = length(vec) * _LightPositionRange.w;
-    mydist *= 0.97; // bias
+    #if defined(SHADOWS_CUBE_IN_DEPTH_TEX)
+        float3 absVec = abs(vec);
+        float dominantAxis = max(max(absVec.x, absVec.y), absVec.z); // TODO use max3() instead
+        dominantAxis = max(0.00001, dominantAxis - _LightProjectionParams.z); // shadow bias from point light is apllied here.
+        dominantAxis *= _LightProjectionParams.w; // bias
+        float mydist = -_LightProjectionParams.x + _LightProjectionParams.y/dominantAxis; // project to shadow map clip space [0; 1]
+
+        #if defined(UNITY_REVERSED_Z)
+        mydist = 1.0 - mydist; // depth buffers are reversed! Additionally we can move this to CPP code!
+        #endif
+    #else
+        float mydist = length(vec) * _LightPositionRange.w;
+        mydist *= _LightProjectionParams.w; // bias
+    #endif
 
     #if defined (SHADOWS_SOFT)
         float z = 1.0/128.0;
         float4 shadowVals;
-        shadowVals.x = SampleCubeDistance (vec+float3( z, z, z));
-        shadowVals.y = SampleCubeDistance (vec+float3(-z,-z, z));
-        shadowVals.z = SampleCubeDistance (vec+float3(-z, z,-z));
-        shadowVals.w = SampleCubeDistance (vec+float3( z,-z,-z));
-        half4 shadows = (shadowVals < mydist.xxxx) ? _LightShadowData.rrrr : 1.0f;
-        return dot(shadows,0.25);
+        // No hardware comparison sampler (ie some mobile + xbox360) : simple 4 tap PCF
+        #if defined (SHADOWS_CUBE_IN_DEPTH_TEX)
+            shadowVals.x = UNITY_SAMPLE_TEXCUBE_SHADOW(_ShadowMapTexture, float4(vec+float3( z, z, z), mydist));
+            shadowVals.y = UNITY_SAMPLE_TEXCUBE_SHADOW(_ShadowMapTexture, float4(vec+float3(-z,-z, z), mydist));
+            shadowVals.z = UNITY_SAMPLE_TEXCUBE_SHADOW(_ShadowMapTexture, float4(vec+float3(-z, z,-z), mydist));
+            shadowVals.w = UNITY_SAMPLE_TEXCUBE_SHADOW(_ShadowMapTexture, float4(vec+float3( z,-z,-z), mydist));
+            half shadow = dot(shadowVals, 0.25);
+            return lerp(_LightShadowData.r, 1.0, shadow);
+        #else
+            shadowVals.x = SampleCubeDistance (vec+float3( z, z, z));
+            shadowVals.y = SampleCubeDistance (vec+float3(-z,-z, z));
+            shadowVals.z = SampleCubeDistance (vec+float3(-z, z,-z));
+            shadowVals.w = SampleCubeDistance (vec+float3( z,-z,-z));
+            half4 shadows = (shadowVals < mydist.xxxx) ? _LightShadowData.rrrr : 1.0f;
+            return dot(shadows, 0.25);
+        #endif
     #else
-        float dist = SampleCubeDistance (vec);
-        return dist < mydist ? _LightShadowData.r : 1.0;
+        #if defined (SHADOWS_CUBE_IN_DEPTH_TEX)
+            half shadow = UNITY_SAMPLE_TEXCUBE_SHADOW(_ShadowMapTexture, float4(vec, mydist));
+            return lerp(_LightShadowData.r, 1.0, shadow);
+        #else
+            half shadowVal = UnityDecodeCubeShadowDepth(UNITY_SAMPLE_TEXCUBE(_ShadowMapTexture, vec));
+            half shadow = shadowVal < mydist ? _LightShadowData.r : 1.0;
+            return shadow;
+        #endif
     #endif
-}
 
+}
 #endif // #if defined (SHADOWS_CUBE)
 
 

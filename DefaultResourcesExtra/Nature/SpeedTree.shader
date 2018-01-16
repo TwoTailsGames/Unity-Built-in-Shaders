@@ -28,7 +28,7 @@ Shader "Nature/SpeedTree"
         Cull [_Cull]
 
         CGPROGRAM
-            #pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap noshadowmask dithercrossfade fullforwardshadows
+            #pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap dithercrossfade fullforwardshadows
             #pragma target 3.0
             #pragma multi_compile_vertex __ LOD_FADE_PERCENTAGE
             #pragma instancing_options assumeuniformscaling lodfade maxcount:50
@@ -168,7 +168,7 @@ Shader "Nature/SpeedTree"
         Cull [_Cull]
 
         CGPROGRAM
-            #pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap noshadowmask fullforwardshadows
+            #pragma surface surf Lambert vertex:SpeedTreeVert nodirlightmap nodynlightmap fullforwardshadows
             #pragma multi_compile_vertex __ LOD_FADE_PERCENTAGE
             #pragma shader_feature GEOM_TYPE_BRANCH GEOM_TYPE_BRANCH_DETAIL GEOM_TYPE_FROND GEOM_TYPE_LEAF GEOM_TYPE_MESH
             #include "SpeedTreeCommon.cginc"

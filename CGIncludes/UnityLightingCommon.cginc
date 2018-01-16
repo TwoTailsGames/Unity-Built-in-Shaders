@@ -39,7 +39,7 @@ struct UnityGIInput
     // also be full float precision to avoid data loss before sampling a texture.
     float4 lightmapUV; // .xy = static lightmap UV, .zw = dynamic lightmap UV
 
-    #if defined(UNITY_SPECCUBE_BLENDING) || defined(UNITY_SPECCUBE_BOX_PROJECTION)
+    #if defined(UNITY_SPECCUBE_BLENDING) || defined(UNITY_SPECCUBE_BOX_PROJECTION) || defined(UNITY_ENABLE_REFLECTION_BUFFERS)
     float4 boxMin[2];
     #endif
     #ifdef UNITY_SPECCUBE_BOX_PROJECTION

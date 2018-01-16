@@ -36,6 +36,11 @@
 #define USING_LIGHT_MULTI_COMPILE
 #endif
 
+#if (defined(SHADER_API_D3D11) && !defined(SHADER_API_XBOXONE))
+// Real-support for depth-format cube shadow map.
+#define SHADOWS_CUBE_IN_DEPTH_TEX
+#endif
+
 #define SCALED_NORMAL v.normal
 
 
@@ -44,9 +49,11 @@
 #define EMISSIVE_RGBM_SCALE 97.0
 
 // Should SH (light probe / ambient) calculations be performed?
-// - Presence of *either* of static or dynamic lightmaps means that diffuse indirect ambient is already in them, so no need for SH.
+// - When both static and dynamic lightmaps are available, no SH evaluation is performed
+// - When static and dynamic lightmaps are not available, SH evaluation is always performed
+// - For low level LODs, static lightmap and real-time GI from light probes can be combined together
 // - Passes that don't do ambient (additive, shadowcaster etc.) should not do SH either.
-#define UNITY_SHOULD_SAMPLE_SH (!defined(LIGHTMAP_ON) && !defined(DYNAMICLIGHTMAP_ON) && !defined(UNITY_PASS_FORWARDADD) && !defined(UNITY_PASS_PREPASSBASE) && !defined(UNITY_PASS_SHADOWCASTER) && !defined(UNITY_PASS_META))
+#define UNITY_SHOULD_SAMPLE_SH (defined(LIGHTPROBE_SH) && !defined(UNITY_PASS_FORWARDADD) && !defined(UNITY_PASS_PREPASSBASE) && !defined(UNITY_PASS_SHADOWCASTER) && !defined(UNITY_PASS_META))
 
 struct appdata_base {
     float4 vertex : POSITION;
@@ -529,18 +536,20 @@ inline half3 DecodeLightmapRGBM (half4 data, half4 decodeInstructions)
 }
 
 // Decodes doubleLDR encoded lightmaps.
-inline half3 DecodeLightmapDoubleLDR( fixed4 color )
+inline half3 DecodeLightmapDoubleLDR( fixed4 color, half4 decodeInstructions)
 {
-    float multiplier = IsGammaSpace() ? 2.0f : GammaToLinearSpace(2.0f).x;
-    return multiplier * color.rgb;
+    // decodeInstructions.x contains 2.0 when gamma color space is used or pow(2.0, 2.2) = 4.59 when linear color space is used on mobile platforms
+    return decodeInstructions.x * color.rgb;
 }
 
 inline half3 DecodeLightmap( fixed4 color, half4 decodeInstructions)
 {
-#if defined(UNITY_NO_RGBM)
-    return DecodeLightmapDoubleLDR( color );
-#else
-    return DecodeLightmapRGBM( color, decodeInstructions );
+#if defined(UNITY_LIGHTMAP_DLDR_ENCODING)
+    return DecodeLightmapDoubleLDR(color, decodeInstructions);
+#elif defined(UNITY_LIGHTMAP_RGBM_ENCODING)
+    return DecodeLightmapRGBM(color, decodeInstructions);
+#else //defined(UNITY_LIGHTMAP_FULL_HDR)
+    return color.rgb;
 #endif
 }
 
@@ -809,7 +818,13 @@ inline float4 ComputeGrabScreenPos (float4 pos) {
 inline float4 UnityPixelSnap (float4 pos)
 {
     float2 hpc = _ScreenParams.xy * 0.5f;
+#if  SHADER_API_PSSL
+// sdk 4.5 splits round into v_floor_f32(x+0.5) ... sdk 5.0 uses v_rndne_f32, for compatabilty we use the 4.5 version
+    float2 temp = ((pos.xy / pos.w) * hpc) + float2(0.5f,0.5f);
+    float2 pixelPos = float2(__v_floor_f32(temp.x), __v_floor_f32(temp.y));
+#else
     float2 pixelPos = round ((pos.xy / pos.w) * hpc);
+#endif
     pos.xy = pixelPos / hpc * pos.w;
     return pos;
 }
@@ -878,9 +893,15 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
 float4 UnityApplyLinearShadowBias(float4 clipPos)
 {
 #if defined(UNITY_REVERSED_Z)
+
+    // For point lights that support depth cube map, the bias is applied in the fragment shader sampling the shadow map.
+    // This is because the legacy behaviour for point light shadow map cannot be implemented by offseting the vertex position
+    // in the vertex shader generating the shadow map.
+#   if !(defined(SHADOWS_CUBE) && defined(SHADOWS_CUBE_IN_DEPTH_TEX))
     // We use max/min instead of clamp to ensure proper handling of the rare case
     // where both numerator and denominator are zero and the fraction becomes NaN.
     clipPos.z += max(-1, min(unity_LightShadowBias.x / clipPos.w, 0));
+#   endif
     float clamped = min(clipPos.z, clipPos.w*UNITY_NEAR_CLIP_VALUE);
 #else
     clipPos.z += saturate(unity_LightShadowBias.x/clipPos.w);
@@ -891,12 +912,13 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 }
 
 
-#ifdef SHADOWS_CUBE
+#if defined(SHADOWS_CUBE) && !defined(SHADOWS_CUBE_IN_DEPTH_TEX)
     // Rendering into point light (cubemap) shadows
     #define V2F_SHADOW_CASTER_NOPOS float3 vec : TEXCOORD0;
     #define TRANSFER_SHADOW_CASTER_NOPOS_LEGACY(o,opos) o.vec = mul(unity_ObjectToWorld, v.vertex).xyz - _LightPositionRange.xyz; opos = UnityObjectToClipPos(v.vertex);
     #define TRANSFER_SHADOW_CASTER_NOPOS(o,opos) o.vec = mul(unity_ObjectToWorld, v.vertex).xyz - _LightPositionRange.xyz; opos = UnityObjectToClipPos(v.vertex);
     #define SHADOW_CASTER_FRAGMENT(i) return UnityEncodeCubeShadowDepth ((length(i.vec) + unity_LightShadowBias.x) * _LightPositionRange.w);
+
 #else
     // Rendering into directional or spot light shadows
     #define V2F_SHADOW_CASTER_NOPOS

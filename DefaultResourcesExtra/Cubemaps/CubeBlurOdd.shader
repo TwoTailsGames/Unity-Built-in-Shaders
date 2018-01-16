@@ -27,8 +27,8 @@ Shader "Hidden/CubeBlurOdd" {
     }
 
     UNITY_DECLARE_TEXCUBE(_MainTex);
+    half _Level; // Workaround for Metal driver bug: please keep this uniform aligned to 4 bytes (case 899153)
     half _Texel;
-    half _Level;
 
     #define zero    half3(0., 0., 0.)
     #define one     half3(1., 1., 1.)

@@ -183,11 +183,25 @@ half3 ShadeSHPerPixel (half3 normal, half3 ambient, float3 worldPos)
 
     #if UNITY_SAMPLE_FULL_SH_PER_PIXEL
         // Completely per-pixel
-        ambient_contrib = ShadeSH9 (half4(normal, 1.0));
-        ambient += max(half3(0, 0, 0), ambient_contrib);
+        #if UNITY_LIGHT_PROBE_PROXY_VOLUME
+            if (unity_ProbeVolumeParams.x == 1.0)
+                ambient_contrib = SHEvalLinearL0L1_SampleProbeVolume(half4(normal, 1.0), worldPos);
+            else
+                ambient_contrib = SHEvalLinearL0L1(half4(normal, 1.0));
+        #else
+            ambient_contrib = SHEvalLinearL0L1(half4(normal, 1.0));
+        #endif
+
+            ambient_contrib += SHEvalLinearL2(half4(normal, 1.0));
+
+            ambient += max(half3(0, 0, 0), ambient_contrib);
+
+        #ifdef UNITY_COLORSPACE_GAMMA
+            ambient = LinearToGammaSpace(ambient);
+        #endif
     #elif (SHADER_TARGET < 30) || UNITY_STANDARD_SIMPLE
         // Completely per-vertex
-        // nothing to do here
+        // nothing to do here. Gamma conversion on ambient from SH takes place in the vertex shader, see ShadeSHPerVertex.
     #else
         // L2 per-vertex, L0..L1 & gamma-correction per-pixel
         // Ambient in this case is expected to be always Linear, see ShadeSHPerVertex()

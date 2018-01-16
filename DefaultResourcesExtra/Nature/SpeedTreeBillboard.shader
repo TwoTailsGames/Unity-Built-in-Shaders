@@ -25,7 +25,7 @@ Shader "Nature/SpeedTree Billboard"
         LOD 400
 
         CGPROGRAM
-            #pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap addshadow noinstancing dithercrossfade
+            #pragma surface surf Lambert vertex:SpeedTreeBillboardVert nodirlightmap nodynlightmap addshadow noinstancing dithercrossfade
             #pragma target 3.0
             #pragma multi_compile __ BILLBOARD_FACE_CAMERA_POS
             #pragma shader_feature EFFECT_BUMP
@@ -101,7 +101,7 @@ Shader "Nature/SpeedTree Billboard"
         LOD 400
 
         CGPROGRAM
-            #pragma surface surf Lambert vertex:SpeedTreeBillboardVert nolightmap noinstancing
+            #pragma surface surf Lambert vertex:SpeedTreeBillboardVert nodirlightmap nodynlightmap noinstancing
             #pragma shader_feature EFFECT_BUMP
             #include "SpeedTreeBillboardCommon.cginc"
 

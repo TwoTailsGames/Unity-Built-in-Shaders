@@ -6,7 +6,7 @@
 // Automatically included in raw GLSL (GLSLPROGRAM) shader snippets, to map from some of the legacy OpenGL
 // variable names to uniform names used by Unity.
 
-#if GL_FRAGMENT_PRECISION_HIGH
+#ifdef GL_FRAGMENT_PRECISION_HIGH
     precision highp float;
 #else
     precision mediump float;

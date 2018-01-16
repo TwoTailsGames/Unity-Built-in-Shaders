@@ -136,4 +136,43 @@ void TreeVertLeaf (inout appdata_full v)
     v.tangent.xyz = normalize(v.tangent.xyz);
 }
 
+float ScreenDitherToAlpha(float x, float y, float c0)
+{
+#if (SHADER_TARGET > 30) || defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3)
+    //dither matrix reference: https://en.wikipedia.org/wiki/Ordered_dithering
+    const float dither[64] = {
+        0, 32, 8, 40, 2, 34, 10, 42,
+        48, 16, 56, 24, 50, 18, 58, 26 ,
+        12, 44, 4, 36, 14, 46, 6, 38 ,
+        60, 28, 52, 20, 62, 30, 54, 22,
+        3, 35, 11, 43, 1, 33, 9, 41,
+        51, 19, 59, 27, 49, 17, 57, 25,
+        15, 47, 7, 39, 13, 45, 5, 37,
+        63, 31, 55, 23, 61, 29, 53, 21 };
+
+    int xMat = fmod(x, 8.0);
+    int yMat = fmod(y, 8.0);
+
+    float limit = (dither[yMat * 8 + xMat] + 11.0) / 64.0;
+    //could also use saturate(step(0.995, c0) + limit*(c0));
+    //original step(limit, c0 + 0.01);
+
+    return lerp(limit*c0, 1.0, c0);
+#else
+    return 1.0;
+#endif
+}
+
+float ComputeAlphaCoverage(float4 screenPos, float fadeAmount)
+{
+#if (SHADER_TARGET > 30) || defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3)
+    float2 pixelPosition = screenPos.xy / (screenPos.w + 0.00001);
+    pixelPosition *= _ScreenParams;
+    float coverage = ScreenDitherToAlpha(pixelPosition.x, pixelPosition.y, fadeAmount);
+    return coverage;
+#else
+    return 1.0;
+#endif
+}
+
 #endif // UNITY_BUILTIN_3X_TREE_LIBRARY_INCLUDED

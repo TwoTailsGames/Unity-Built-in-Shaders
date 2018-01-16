@@ -226,13 +226,8 @@ half3 NormalInTangentSpace(float4 texcoords)
 
 float4 Parallax (float4 texcoords, half3 viewDir)
 {
-// D3D9/SM30 supports up to 16 samplers, skip the parallax map in case we exceed the limit
-#define EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT  (defined(LIGHTMAP_ON) && defined(SHADOWS_SHADOWMASK) && defined(SHADOWS_SCREEN) && defined(_NORMALMAP) && \
-                                             defined(_EMISSION) && defined(_DETAIL) && (defined(_METALLICGLOSSMAP) || defined(_SPECGLOSSMAP)))
-
-#if !defined(_PARALLAXMAP) || (SHADER_TARGET < 30) || (defined(SHADER_API_D3D9) && EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT)
-    // SM20: instruction count limitation
-    // SM20: no parallax
+#if !defined(_PARALLAXMAP) || (SHADER_TARGET < 30)
+    // Disable parallax on pre-SM3.0 shader target models
     return texcoords;
 #else
     half h = tex2D (_ParallaxMap, texcoords.xy).g;
@@ -240,7 +235,6 @@ float4 Parallax (float4 texcoords, half3 viewDir)
     return float4(texcoords.xy + offset, texcoords.zw + offset);
 #endif
 
-#undef EXCEEDS_D3D9_SM3_MAX_SAMPLER_COUNT
 }
 
 #endif // UNITY_STANDARD_INPUT_INCLUDED

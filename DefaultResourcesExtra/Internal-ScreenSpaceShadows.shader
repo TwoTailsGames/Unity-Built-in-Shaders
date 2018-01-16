@@ -35,7 +35,8 @@ struct appdata {
     float4 vertex : POSITION;
     float2 texcoord : TEXCOORD0;
 #ifdef UNITY_STEREO_INSTANCING_ENABLED
-    float3 ray[2] : TEXCOORD1;
+    float3 ray0 : TEXCOORD1;
+    float3 ray1 : TEXCOORD2;
 #else
     float3 ray : TEXCOORD1;
 #endif
@@ -72,7 +73,7 @@ v2f vert (appdata v)
 
     // Perspective case
 #ifdef UNITY_STEREO_INSTANCING_ENABLED
-    o.ray = v.ray[unity_StereoEyeIndex];
+    o.ray = unity_StereoEyeIndex == 0 ? v.ray0 : v.ray1;
 #else
     o.ray = v.ray;
 #endif

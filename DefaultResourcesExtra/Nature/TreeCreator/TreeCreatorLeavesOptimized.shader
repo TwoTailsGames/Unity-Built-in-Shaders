@@ -29,6 +29,7 @@ SubShader {
 
 CGPROGRAM
 #pragma surface surf TreeLeaf alphatest:_Cutoff vertex:TreeVertLeaf nolightmap noforwardadd
+#pragma multi_compile __ BILLBOARD_FACE_CAMERA_POS
 #include "UnityBuiltin3xTreeLibrary.cginc"
 
 sampler2D _MainTex;
@@ -38,6 +39,9 @@ sampler2D _TranslucencyMap;
 struct Input {
     float2 uv_MainTex;
     fixed4 color : COLOR; // color.a = AO
+#if defined(BILLBOARD_FACE_CAMERA_POS)
+    float4 screenPos;
+#endif
 };
 
 void surf (Input IN, inout LeafSurfaceOutput o) {
@@ -48,7 +52,14 @@ void surf (Input IN, inout LeafSurfaceOutput o) {
     o.Translucency = trngls.b;
     o.Gloss = trngls.a * _Color.r;
     o.Alpha = c.a;
-
+#if defined(BILLBOARD_FACE_CAMERA_POS)
+    float coverage = 1.0;
+    if (_TreeInstanceColor.a < 1.0)
+    {
+        coverage = ComputeAlphaCoverage(IN.screenPos, _TreeInstanceColor.a);
+    }
+    o.Alpha *= coverage;
+#endif
     half4 norspc = tex2D (_BumpSpecMap, IN.uv_MainTex);
     o.Specular = norspc.r;
     o.Normal = UnpackNormalDXT5nm(norspc);

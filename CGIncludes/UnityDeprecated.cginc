@@ -65,7 +65,7 @@ inline half ImplicitVisibilityTerm ()
     return 1;
 }
 
-// BlinnPhong normalized as reflection density­sity function (RDF)
+// BlinnPhong normalized as reflection densityÂ­sity function (RDF)
 // ready for use directly as specular: spec=D
 // http://www.thetenthplanet.de/archives/255
 inline half RDFBlinnPhongNormalizedTerm (half NdotH, half n)

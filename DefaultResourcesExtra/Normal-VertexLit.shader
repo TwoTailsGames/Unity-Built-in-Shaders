@@ -32,52 +32,89 @@ SubShader {
         }
     }
 
-    // Lightmapped, encoded as dLDR
-    Pass {
-        Tags { "LightMode" = "VertexLM" }
+    // Lightmapped
+    Pass
+    {
+        Tags{ "LIGHTMODE" = "VertexLM" "RenderType" = "Opaque" }
 
-        BindChannels {
-            Bind "Vertex", vertex
-            Bind "normal", normal
-            Bind "texcoord1", texcoord0 // lightmap uses 2nd uv
-            Bind "texcoord", texcoord1 // main uses 1st uv
+        CGPROGRAM
+
+        #pragma vertex vert
+        #pragma fragment frag
+        #pragma target 2.0
+        #include "UnityCG.cginc"
+        #pragma multi_compile_fog
+        #define USING_FOG (defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2))
+
+        float4 unity_Lightmap_ST;
+        float4 _MainTex_ST;
+
+        struct appdata
+        {
+            float3 pos : POSITION;
+            float3 uv1 : TEXCOORD1;
+            float3 uv0 : TEXCOORD0;
+            UNITY_VERTEX_INPUT_INSTANCE_ID
+        };
+
+        struct v2f
+        {
+            float2 uv0 : TEXCOORD0;
+            float2 uv1 : TEXCOORD1;
+            float2 uv2 : TEXCOORD2;
+#if USING_FOG
+            fixed fog : TEXCOORD3;
+#endif
+            float4 pos : SV_POSITION;
+            UNITY_VERTEX_OUTPUT_STEREO
+        };
+
+        v2f vert(appdata IN)
+        {
+            v2f o;
+            UNITY_SETUP_INSTANCE_ID(IN);
+            UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
+            o.uv0 = IN.uv1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
+            o.uv1 = IN.uv1.xy * unity_Lightmap_ST.xy + unity_Lightmap_ST.zw;
+            o.uv2 = IN.uv0.xy * _MainTex_ST.xy + _MainTex_ST.zw;
+
+#if USING_FOG
+            float3 eyePos = UnityObjectToViewPos(IN.pos);
+            float fogCoord = length(eyePos.xyz);
+            UNITY_CALC_FOG_FACTOR_RAW(fogCoord);
+            o.fog = saturate(unityFogFactor);
+#endif
+
+            o.pos = UnityObjectToClipPos(IN.pos);
+            return o;
         }
 
-        SetTexture [unity_Lightmap] {
-            matrix [unity_LightmapMatrix]
-            constantColor [_Color]
-            combine texture * constant
-        }
-        SetTexture [_MainTex] {
-            constantColor (1,1,1,1)
-            combine texture * previous DOUBLE, constant // UNITY_OPAQUE_ALPHA_FFP
-        }
-    }
+        sampler2D _MainTex;
+        fixed4 _Color;
 
-    // Lightmapped, encoded as RGBM
-    Pass {
-        Tags { "LightMode" = "VertexLMRGBM" }
+        fixed4 frag(v2f IN) : SV_Target
+        {
+            fixed4 col;
 
-        BindChannels {
-            Bind "Vertex", vertex
-            Bind "normal", normal
-            Bind "texcoord1", texcoord0 // lightmap uses 2nd uv
-            Bind "texcoord1", texcoord1 // unused
-            Bind "texcoord", texcoord2 // main uses 1st uv
+            fixed4 tex = UNITY_SAMPLE_TEX2D(unity_Lightmap, IN.uv0.xy);
+            half4 bakedColor = half4(DecodeLightmap(tex), 1.0);
+
+            col = bakedColor * _Color;
+
+            tex = tex2D(_MainTex, IN.uv2.xy);
+            col.rgb = tex.rgb * col.rgb;
+
+            col.a = 1.0f;
+
+            #if USING_FOG
+                    col.rgb = lerp(unity_FogColor.rgb, col.rgb, IN.fog);
+            #endif
+
+            return col;
         }
 
-        SetTexture [unity_Lightmap] {
-            matrix [unity_LightmapMatrix]
-            combine texture * texture alpha DOUBLE
-        }
-        SetTexture [unity_Lightmap] {
-            constantColor [_Color]
-            combine previous * constant
-        }
-        SetTexture [_MainTex] {
-            constantColor (1,1,1,1)
-            combine texture * previous QUAD, constant // UNITY_OPAQUE_ALPHA_FFP
-        }
+        ENDCG
     }
 
     // Pass to render object as a shadow caster

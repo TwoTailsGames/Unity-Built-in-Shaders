@@ -31,9 +31,8 @@ Shader "Hidden/CubeBlur" {
 
     #define UNITY_SAMPLE_TEXCUBE_LOD_CLAMPED(tex, dir,  lod) max(half4(0.0, 0.0, 0.0, 0.0), UNITY_SAMPLE_TEXCUBE_LOD(tex, dir, lod))
 
+    half _Level; // Workaround for Metal driver bug: please keep this uniform aligned to 4 bytes (case 899153)
     half _Texel;
-    half _Radius;
-    half _Level;
     half _Scale;
 
     #define zero    half3(0., 0., 0.)

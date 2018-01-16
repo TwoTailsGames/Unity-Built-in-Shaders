@@ -41,8 +41,14 @@
 #endif
 
 #ifndef UNITY_SAMPLE_FULL_SH_PER_PIXEL
-//If this is enabled then we should consider Light Probe Proxy Volumes(SHEvalLinearL0L1_SampleProbeVolume) in ShadeSH9
-#define UNITY_SAMPLE_FULL_SH_PER_PIXEL 0
+    // Lightmap UVs and ambient color from SHL2 are shared in the vertex to pixel interpolators. Do full SH evaluation in the pixel shader when static lightmap and LIGHTPROBE_SH is enabled.
+    #define UNITY_SAMPLE_FULL_SH_PER_PIXEL (LIGHTMAP_ON && LIGHTPROBE_SH)
+
+    // Shaders might fail to compile due to shader instruction count limit. Leave only baked lightmaps on SM20 hardware.
+    #if UNITY_SAMPLE_FULL_SH_PER_PIXEL && (SHADER_TARGET < 25)
+        #undef UNITY_SAMPLE_FULL_SH_PER_PIXEL
+        #undef LIGHTPROBE_SH
+    #endif
 #endif
 
 #ifndef UNITY_BRDF_GGX
@@ -75,7 +81,8 @@
 #endif
 
 // Should we pack worldPos along tangent (saving an interpolator)
-#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP)
+// We want to skip this on mobile platforms, because worldpos gets packed into mediump
+#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP) && !(defined(SHADER_API_MOBILE) && !defined(SHADER_API_D3D11_9X))
     #define UNITY_PACK_WORLDPOS_WITH_TANGENT 1
 #else
     #define UNITY_PACK_WORLDPOS_WITH_TANGENT 0
