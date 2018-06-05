@@ -28,7 +28,12 @@
 // disregarding what is set in TierSettings, some features have hardware restrictions
 // so we still add safety net, otherwise we might end up with shaders failing to compile
 
-#if SHADER_TARGET < 30
+#if defined(SHADER_TARGET_SURFACE_ANALYSIS)
+    // For surface shader code analysis pass, disable some features that don't affect inputs/outputs
+    #undef UNITY_SPECCUBE_BOX_PROJECTION
+    #undef UNITY_SPECCUBE_BLENDING
+    #undef UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS
+#elif SHADER_TARGET < 30
     #undef UNITY_SPECCUBE_BOX_PROJECTION
     #undef UNITY_SPECCUBE_BLENDING
     #undef UNITY_ENABLE_DETAIL_NORMALMAP

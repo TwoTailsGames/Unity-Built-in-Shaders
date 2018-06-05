@@ -171,6 +171,7 @@ const half3x3 unity_DirBasis = half3x3( \
 // Deprecated, kept around for existing user shaders. Only sampling the flat lightmap now.
 half3 DirLightmapDiffuse(in half3x3 dirBasis, fixed4 color, fixed4 scale, half3 normal, bool surfFuncWritesNormal, out half3 scalePerBasisVector)
 {
+    scalePerBasisVector = 1;
     return DecodeLightmap (color);
 }
 

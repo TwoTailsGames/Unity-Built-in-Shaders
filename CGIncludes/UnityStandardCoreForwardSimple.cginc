@@ -48,6 +48,11 @@ half SpecularSetup_Reflectivity()
     return SpecularStrength(_SpecColor.rgb);
 }
 
+half RoughnessSetup_Reflectivity()
+{
+    return MetallicSetup_Reflectivity();
+}
+
 #define JOIN2(a, b) a##b
 #define JOIN(a, b) JOIN2(a,b)
 #define UNIFORM_REFLECTIVITY JOIN(UNITY_SETUP_BRDF_INPUT, _Reflectivity)
@@ -235,23 +240,23 @@ struct VertexOutputForwardAddSimple
     float4 tex                          : TEXCOORD0;
     float3 posWorld                     : TEXCOORD1;
 
-    UNITY_SHADOW_COORDS(2)
-
 #if !defined(_NORMALMAP) && SPECULAR_HIGHLIGHTS
-    UNITY_FOG_COORDS_PACKED(3, half4) // x: fogCoord, yzw: reflectVec
+    UNITY_FOG_COORDS_PACKED(2, half4) // x: fogCoord, yzw: reflectVec
 #else
-    UNITY_FOG_COORDS_PACKED(3, half1)
+    UNITY_FOG_COORDS_PACKED(2, half1)
 #endif
 
-    half3 lightDir                      : TEXCOORD4;
+    half3 lightDir                      : TEXCOORD3;
 
 #if defined(_NORMALMAP)
     #if SPECULAR_HIGHLIGHTS
-        half3 tangentSpaceEyeVec        : TEXCOORD5;
+        half3 tangentSpaceEyeVec        : TEXCOORD4;
     #endif
 #else
-    half3 normalWorld                   : TEXCOORD5;
+    half3 normalWorld                   : TEXCOORD4;
 #endif
+
+    UNITY_LIGHTING_COORDS(5, 6)
 
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -268,8 +273,8 @@ VertexOutputForwardAddSimple vertForwardAddSimple (VertexInput v)
     o.tex = TexCoords(v);
     o.posWorld = posWorld.xyz;
 
-    //We need this for shadow receiving
-    UNITY_TRANSFER_SHADOW(o, v.uv1);
+    //We need this for shadow receiving and lighting
+    UNITY_TRANSFER_LIGHTING(o, v.uv1);
 
     half3 lightDir = _WorldSpaceLightPos0.xyz - posWorld.xyz * _WorldSpaceLightPos0.w;
     #ifndef USING_DIRECTIONAL_LIGHT

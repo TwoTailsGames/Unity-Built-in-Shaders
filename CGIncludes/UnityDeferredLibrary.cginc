@@ -44,12 +44,12 @@ float4 _LightPos;
 float4 _LightColor;
 float4 unity_LightmapFade;
 float4x4 unity_WorldToLight;
-sampler2D _LightTextureB0;
+sampler2D_float _LightTextureB0;
 
 #if defined (POINT_COOKIE)
-samplerCUBE _LightTexture0;
+samplerCUBE_float _LightTexture0;
 #else
-sampler2D _LightTexture0;
+sampler2D_float _LightTexture0;
 #endif
 
 #if defined (SHADOWS_SCREEN)

@@ -150,8 +150,8 @@ float ScreenDitherToAlpha(float x, float y, float c0)
         15, 47, 7, 39, 13, 45, 5, 37,
         63, 31, 55, 23, 61, 29, 53, 21 };
 
-    int xMat = fmod(x, 8.0);
-    int yMat = fmod(y, 8.0);
+    int xMat = int(x) & 7;
+    int yMat = int(y) & 7;
 
     float limit = (dither[yMat * 8 + xMat] + 11.0) / 64.0;
     //could also use saturate(step(0.995, c0) + limit*(c0));

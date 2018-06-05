@@ -13,7 +13,7 @@
     #error "Please include UnityShaderUtilities.cginc first."
 #endif
 
-#if SHADER_TARGET >= 35 && (defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC)))
+#if SHADER_TARGET >= 35 && (defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL))
     #define UNITY_SUPPORT_INSTANCING
 #endif
 
@@ -22,7 +22,8 @@
 #endif
 
 #ifdef SHADER_TARGET_SURFACE_ANALYSIS
-    #define UNITY_SUPPORT_INSTANCING
+    // Treat instancing as not supported for surface shader analysis step -- it does not affect what is being read/written by the shader anyway.
+    #undef UNITY_SUPPORT_INSTANCING
     #ifdef UNITY_MAX_INSTANCE_COUNT
         #undef UNITY_MAX_INSTANCE_COUNT
     #endif
@@ -37,12 +38,12 @@
     #define UNITY_SUPPORT_STEREO_INSTANCING
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_SWITCH)
     #define UNITY_INSTANCING_AOS
 #endif
 
 // These platforms support dynamically adjusting the instancing CB size according to the current batch.
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL) || defined(SHADER_API_VULKAN)
     #define UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE
 #endif
 
@@ -200,7 +201,11 @@
     #elif defined(UNITY_MAX_INSTANCE_COUNT)
         #define UNITY_INSTANCED_ARRAY_SIZE  UNITY_MAX_INSTANCE_COUNT
     #else
-        #define UNITY_INSTANCED_ARRAY_SIZE  500
+        #if defined(SHADER_API_VULKAN) && defined(SHADER_API_MOBILE)
+            #define UNITY_INSTANCED_ARRAY_SIZE  250
+        #else
+            #define UNITY_INSTANCED_ARRAY_SIZE  500
+        #endif
     #endif
 
     #ifdef UNITY_INSTANCING_AOS
@@ -223,7 +228,25 @@
     #endif
 
     #if defined(UNITY_INSTANCED_LOD_FADE) && (defined(LOD_FADE_PERCENTAGE) || defined(LOD_FADE_CROSSFADE))
-        #define UNITY_USE_LODFADEARRAY
+        #define UNITY_USE_LODFADE_ARRAY
+    #endif
+
+    #ifdef UNITY_INSTANCED_LIGHTMAPSTS
+        #ifdef LIGHTMAP_ON
+            #define UNITY_USE_LIGHTMAPST_ARRAY
+        #endif
+        #ifdef DYNAMICLIGHTMAP_ON
+            #define UNITY_USE_DYNAMICLIGHTMAPST_ARRAY
+        #endif
+    #endif
+
+    #if defined(UNITY_INSTANCED_SH) && !defined(LIGHTMAP_ON)
+        #if UNITY_SHOULD_SAMPLE_SH
+            #define UNITY_USE_SHCOEFFS_ARRAYS
+        #endif
+        #if defined(UNITY_PASS_DEFERRED) && defined(SHADOWS_SHADOWMASK) && (UNITY_ALLOWED_MRT_COUNT > 4)
+            #define UNITY_USE_PROBESOCCLUSION_ARRAY
+        #endif
     #endif
 
     UNITY_INSTANCING_BUFFER_START(PerDraw0)
@@ -231,8 +254,10 @@
         #if UNITY_WORLDTOOBJECTARRAY_CB == 0
             UNITY_DEFINE_INSTANCED_PROP(float4x4, unity_WorldToObjectArray)
         #endif
-        #ifdef UNITY_USE_LODFADEARRAY
+        #if defined(UNITY_USE_LODFADE_ARRAY) && defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
             UNITY_DEFINE_INSTANCED_PROP(float, unity_LODFadeArray)
+            // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
+            #define unity_LODFade UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_LODFadeArray).xxxx
         #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins0)
 
@@ -240,18 +265,49 @@
         #if UNITY_WORLDTOOBJECTARRAY_CB == 1
             UNITY_DEFINE_INSTANCED_PROP(float4x4, unity_WorldToObjectArray)
         #endif
+        #if defined(UNITY_USE_LODFADE_ARRAY) && !defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
+            UNITY_DEFINE_INSTANCED_PROP(float, unity_LODFadeArray)
+            // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
+            #define unity_LODFade UNITY_ACCESS_INSTANCED_PROP(unity_Builtins1, unity_LODFadeArray).xxxx
+        #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins1)
+
+    UNITY_INSTANCING_BUFFER_START(PerDraw2)
+        #ifdef UNITY_USE_LIGHTMAPST_ARRAY
+            UNITY_DEFINE_INSTANCED_PROP(float4, unity_LightmapSTArray)
+            #define unity_LightmapST UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_LightmapSTArray)
+        #endif
+        #ifdef UNITY_USE_DYNAMICLIGHTMAPST_ARRAY
+            UNITY_DEFINE_INSTANCED_PROP(float4, unity_DynamicLightmapSTArray)
+            #define unity_DynamicLightmapST UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_DynamicLightmapSTArray)
+        #endif
+        #ifdef UNITY_USE_SHCOEFFS_ARRAYS
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHArArray)
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHAgArray)
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHAbArray)
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHBrArray)
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHBgArray)
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHBbArray)
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_SHCArray)
+            #define unity_SHAr UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHArArray)
+            #define unity_SHAg UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHAgArray)
+            #define unity_SHAb UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHAbArray)
+            #define unity_SHBr UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHBrArray)
+            #define unity_SHBg UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHBgArray)
+            #define unity_SHBb UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHBbArray)
+            #define unity_SHC  UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_SHCArray)
+        #endif
+        #ifdef UNITY_USE_PROBESOCCLUSION_ARRAY
+            UNITY_DEFINE_INSTANCED_PROP(half4, unity_ProbesOcclusionArray)
+            #define unity_ProbesOcclusion UNITY_ACCESS_INSTANCED_PROP(unity_Builtins2, unity_ProbesOcclusionArray)
+        #endif
+    UNITY_INSTANCING_BUFFER_END(unity_Builtins2)
 
     #define unity_ObjectToWorld     UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_ObjectToWorldArray)
 
     #define MERGE_UNITY_BUILTINS_INDEX(X) unity_Builtins##X
 
     #define unity_WorldToObject     UNITY_ACCESS_INSTANCED_PROP(MERGE_UNITY_BUILTINS_INDEX(UNITY_WORLDTOOBJECTARRAY_CB), unity_WorldToObjectArray)
-
-    #ifdef UNITY_USE_LODFADEARRAY
-        // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
-        #define unity_LODFade       UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_LODFadeArray).xxxx
-    #endif
 
     inline float4 UnityObjectToClipPosInstanced(in float3 pos)
     {

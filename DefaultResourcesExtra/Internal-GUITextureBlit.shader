@@ -3,7 +3,9 @@
 
 Shader "Hidden/Internal-GUITextureBlit"
 {
-    Properties { _MainTex ("Texture", Any) = "white" {} }
+    Properties {
+        _MainTex ("Texture", Any) = "white" {}
+    }
 
     CGINCLUDE
     #pragma vertex vert
@@ -44,13 +46,17 @@ Shader "Hidden/Internal-GUITextureBlit"
         return o;
     }
 
+    uniform bool _ManualTex2SRGB;
     sampler2D _MainTex;
     sampler2D _GUIClipTexture;
 
     fixed4 frag (v2f i) : SV_Target
     {
+        fixed4 colTex = tex2D(_MainTex, i.texcoord);
+        if (_ManualTex2SRGB)
+            colTex.rgb = LinearToGammaSpace(colTex.rgb);
         fixed4 col;
-        col.rgb = tex2D (_MainTex, i.texcoord).rgb * i.color.rgb;
+        col.rgb = colTex.rgb * i.color.rgb;
         col.a = i.color.a * tex2D(_GUIClipTexture, i.clipUV).a;
         return col;
     }

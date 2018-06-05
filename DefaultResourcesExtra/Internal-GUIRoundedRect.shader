@@ -4,6 +4,8 @@ Shader "Hidden/Internal-GUIRoundedRect"
 {
     Properties {
         _MainTex ("Texture", any) = "white" {}
+        _SrcBlend("SrcBlend", Int) = 5 // SrcAlpha
+        _DstBlend("DstBlend", Int) = 10 // OneMinusSrcAlpha
     }
 
     CGINCLUDE
@@ -29,6 +31,8 @@ Shader "Hidden/Internal-GUIRoundedRect"
 
     sampler2D _MainTex;
     sampler2D _GUIClipTexture;
+    uniform bool _ManualTex2SRGB;
+    uniform int _SrcBlend;
 
     uniform float4 _MainTex_ST;
     uniform float4x4 unity_GUIClipTextureMatrix;
@@ -50,7 +54,6 @@ Shader "Hidden/Internal-GUIRoundedRect"
 
         float a = radius - borderWidth1;
         float b = radius - borderWidth2;
-        float ellipseDist= (v.x*v.x)/(a*a) + (v.y*v.y)/(b*b);
 
         v.y *= a/b;
         half rawDist = (length(v) - a) * pixelScale;
@@ -81,7 +84,11 @@ Shader "Hidden/Internal-GUIRoundedRect"
     {
         float pixelScale = 1.0f/abs(ddx(i.pos.x));
 
-        half4 col = tex2D(_MainTex, i.texcoord) * i.color;
+        half4 col = tex2D(_MainTex, i.texcoord);
+        if (_ManualTex2SRGB)
+            col.rgb = LinearToGammaSpace(col.rgb);
+        col *= i.color;
+
         float2 p = i.pos.xy;
 
         float cornerRadius2 = _CornerRadiuses[0] * 2.0f;
@@ -115,21 +122,32 @@ Shader "Hidden/Internal-GUIRoundedRect"
         }
 
         bool isInCorner = (xIsLeft ? p.x <= center.x : p.x >= center.x) && (yIsTop ? p.y <= center.y : p.y >= center.y);
-        col.a *= isInCorner ? GetCornerAlpha(p, center, bw1, bw2, activeRadius, pixelScale) : 1.0f;
+        float cornerAlpha = isInCorner ? GetCornerAlpha(p, center, bw1, bw2, activeRadius, pixelScale) : 1.0f;
+        col.a *= cornerAlpha;
 
-        bool isPointInCenter = IsPointInside(p, float4(_Rect[0]+_BorderWidths[0], _Rect[1]+_BorderWidths[1], _Rect[2]-(_BorderWidths[0]+_BorderWidths[2]), _Rect[3]-(_BorderWidths[1]+_BorderWidths[3])));
-        half middleAlpha = isPointInCenter ? 0.0f : col.a;
+        float4 centerRect = float4(_Rect[0]+_BorderWidths[0], _Rect[1]+_BorderWidths[1], _Rect[2]-(_BorderWidths[0]+_BorderWidths[2]), _Rect[3]-(_BorderWidths[1]+_BorderWidths[3]));
+        bool isPointInCenter = IsPointInside(p, centerRect);
+
+        half middleMask = isPointInCenter ? 0.0f : 1.0f;
         bool hasBorder = _BorderWidths[0] > 0 || _BorderWidths[1] > 0 || _BorderWidths[2] > 0 || _BorderWidths[3] > 0;
-        col.a *= hasBorder ? (isInCorner ? col.a : middleAlpha) : 1.0f;
+        float borderAlpha = hasBorder ? (isInCorner ? 1.0f : middleMask) : 1.0f;
+        col.a *= borderAlpha;
 
-        col.a *= tex2D(_GUIClipTexture, i.clipUV).a;
+        float clipAlpha = tex2D(_GUIClipTexture, i.clipUV).a;
+        col.a *= clipAlpha;
 
+        // If the source blend is not SrcAlpha (default) we need to multiply the color by the rounded corner
+        // alpha factors for clipping, since it will not be done at the blending stage.
+        if (_SrcBlend != 5) // 5 SrcAlpha
+        {
+            col.rgb *= cornerAlpha * borderAlpha * clipAlpha;
+        }
         return col;
     }
     ENDCG
 
     SubShader {
-        Blend SrcAlpha OneMinusSrcAlpha, One One
+        Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
         Cull Off
         ZWrite Off
         ZTest Always
@@ -141,7 +159,7 @@ Shader "Hidden/Internal-GUIRoundedRect"
     }
 
     SubShader {
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend [_SrcBlend] [_DstBlend]
         Cull Off
         ZWrite Off
         ZTest Always

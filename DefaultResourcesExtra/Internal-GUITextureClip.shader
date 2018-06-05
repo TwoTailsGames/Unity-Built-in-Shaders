@@ -3,7 +3,9 @@
 
 Shader "Hidden/Internal-GUITextureClip"
 {
-    Properties { _MainTex ("Texture", Any) = "white" {} }
+    Properties {
+        _MainTex ("Texture", Any) = "white" {}
+    }
 
     CGINCLUDE
     #pragma vertex vert
@@ -29,6 +31,7 @@ Shader "Hidden/Internal-GUITextureClip"
 
     sampler2D _MainTex;
     sampler2D _GUIClipTexture;
+    uniform bool _ManualTex2SRGB;
 
     uniform float4 _MainTex_ST;
     uniform fixed4 _Color;
@@ -49,7 +52,10 @@ Shader "Hidden/Internal-GUITextureClip"
 
     fixed4 frag (v2f i) : SV_Target
     {
-        fixed4 col = tex2D(_MainTex, i.texcoord) * i.color;
+        fixed4 colTex = tex2D(_MainTex, i.texcoord);
+        if (_ManualTex2SRGB)
+            colTex.rgb = LinearToGammaSpace(colTex.rgb);
+        fixed4 col = colTex * i.color;
         col.a *= tex2D(_GUIClipTexture, i.clipUV).a;
         return col;
     }

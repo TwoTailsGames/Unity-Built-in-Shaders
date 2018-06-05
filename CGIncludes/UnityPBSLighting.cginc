@@ -13,16 +13,13 @@
 // Default BRDF to use:
 #if !defined (UNITY_BRDF_PBS) // allow to explicitly override BRDF in custom shader
     // still add safe net for low shader models, otherwise we might end up with shaders failing to compile
-    #if SHADER_TARGET < 30
+    #if SHADER_TARGET < 30 || defined(SHADER_TARGET_SURFACE_ANALYSIS) // only need "something" for surface shader analysis pass; pick the cheap one
         #define UNITY_BRDF_PBS BRDF3_Unity_PBS
     #elif defined(UNITY_PBS_USE_BRDF3)
         #define UNITY_BRDF_PBS BRDF3_Unity_PBS
     #elif defined(UNITY_PBS_USE_BRDF2)
         #define UNITY_BRDF_PBS BRDF2_Unity_PBS
     #elif defined(UNITY_PBS_USE_BRDF1)
-        #define UNITY_BRDF_PBS BRDF1_Unity_PBS
-    #elif defined(SHADER_TARGET_SURFACE_ANALYSIS)
-        // we do preprocess pass during shader analysis and we dont actually care about brdf as we need only inputs/outputs
         #define UNITY_BRDF_PBS BRDF1_Unity_PBS
     #else
         #error something broke in auto-choosing BRDF
@@ -65,7 +62,7 @@ inline half3 BRDF_Unity_Indirect (half3 baseColor, half3 specColor, half oneMinu
 struct SurfaceOutputStandard
 {
     fixed3 Albedo;      // base (diffuse or specular) color
-    fixed3 Normal;      // tangent space normal, if written
+    float3 Normal;      // tangent space normal, if written
     half3 Emission;
     half Metallic;      // 0=non-metal, 1=metal
     // Smoothness is the user facing name, it should be perceptual smoothness but user should not have to deal with it.
@@ -75,7 +72,7 @@ struct SurfaceOutputStandard
     fixed Alpha;        // alpha for transparencies
 };
 
-inline half4 LightingStandard (SurfaceOutputStandard s, half3 viewDir, UnityGI gi)
+inline half4 LightingStandard (SurfaceOutputStandard s, float3 viewDir, UnityGI gi)
 {
     s.Normal = normalize(s.Normal);
 
@@ -93,7 +90,7 @@ inline half4 LightingStandard (SurfaceOutputStandard s, half3 viewDir, UnityGI g
     return c;
 }
 
-inline half4 LightingStandard_Deferred (SurfaceOutputStandard s, half3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
+inline half4 LightingStandard_Deferred (SurfaceOutputStandard s, float3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
 {
     half oneMinusReflectivity;
     half3 specColor;
@@ -134,14 +131,14 @@ struct SurfaceOutputStandardSpecular
 {
     fixed3 Albedo;      // diffuse color
     fixed3 Specular;    // specular color
-    fixed3 Normal;      // tangent space normal, if written
+    float3 Normal;      // tangent space normal, if written
     half3 Emission;
     half Smoothness;    // 0=rough, 1=smooth
     half Occlusion;     // occlusion (default 1)
     fixed Alpha;        // alpha for transparencies
 };
 
-inline half4 LightingStandardSpecular (SurfaceOutputStandardSpecular s, half3 viewDir, UnityGI gi)
+inline half4 LightingStandardSpecular (SurfaceOutputStandardSpecular s, float3 viewDir, UnityGI gi)
 {
     s.Normal = normalize(s.Normal);
 
@@ -159,7 +156,7 @@ inline half4 LightingStandardSpecular (SurfaceOutputStandardSpecular s, half3 vi
     return c;
 }
 
-inline half4 LightingStandardSpecular_Deferred (SurfaceOutputStandardSpecular s, half3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
+inline half4 LightingStandardSpecular_Deferred (SurfaceOutputStandardSpecular s, float3 viewDir, UnityGI gi, out half4 outGBuffer0, out half4 outGBuffer1, out half4 outGBuffer2)
 {
     // energy conservation
     half oneMinusReflectivity;

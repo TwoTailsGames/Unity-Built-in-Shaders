@@ -83,9 +83,7 @@ SubShader {
             fixed4 c = tex * _Color;
             metaIN.Albedo = c.rgb;
             metaIN.Emission = c.rgb * tex2D(_Illum, i.uvIllum).a;
-#if defined (UNITY_PASS_META)
-            o.Emission *= _Emission.rrr;
-#endif
+
             return UnityMetaFragment(metaIN);
         }
         ENDCG

@@ -143,7 +143,7 @@ SubShader {
 
         #if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
             // for HQ sun disk, we need vertex itself to calculate ray-dir per-pixel
-            half3   vertex          : TEXCOORD0;
+            float3  vertex          : TEXCOORD0;
         #elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
             half3   rayDir          : TEXCOORD0;
         #else

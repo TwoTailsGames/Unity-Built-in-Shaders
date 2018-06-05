@@ -197,11 +197,12 @@ half4 LPPV_SampleProbeOcclusion(float3 worldPos)
 #endif //#if UNITY_LIGHT_PROBE_PROXY_VOLUME
 
 // ------------------------------------------------------------------
+// Used by the forward rendering path
 fixed UnitySampleBakedOcclusion (float2 lightmapUV, float3 worldPos)
 {
     #if defined (SHADOWS_SHADOWMASK)
         #if defined(LIGHTMAP_ON)
-            fixed4 rawOcclusionMask = UNITY_SAMPLE_TEX2D_SAMPLER(unity_ShadowMask, unity_Lightmap, lightmapUV.xy);
+            fixed4 rawOcclusionMask = UNITY_SAMPLE_TEX2D(unity_ShadowMask, lightmapUV.xy);
         #else
             fixed4 rawOcclusionMask = fixed4(1.0, 1.0, 1.0, 1.0);
             #if UNITY_LIGHT_PROBE_PROXY_VOLUME
@@ -216,24 +217,32 @@ fixed UnitySampleBakedOcclusion (float2 lightmapUV, float3 worldPos)
         return saturate(dot(rawOcclusionMask, unity_OcclusionMaskSelector));
 
     #else
-        //Handle LPPV baked occlusion for subtractive mode
+
+        //In forward dynamic objects can only get baked occlusion from LPPV, light probe occlusion is done on the CPU by attenuating the light color.
+        fixed atten = 1.0f;
+        #if defined(UNITY_INSTANCING_ENABLED) && defined(UNITY_USE_SHCOEFFS_ARRAYS)
+            // ...unless we are doing instancing, and the attenuation is packed into SHC array's .w component.
+            atten = unity_SHC.w;
+        #endif
+
         #if UNITY_LIGHT_PROBE_PROXY_VOLUME && !defined(LIGHTMAP_ON) && !UNITY_STANDARD_SIMPLE
-            fixed4 rawOcclusionMask = fixed4(1.0, 1.0, 1.0, 1.0);
+            fixed4 rawOcclusionMask = atten.xxxx;
             if (unity_ProbeVolumeParams.x == 1.0)
                 rawOcclusionMask = LPPV_SampleProbeOcclusion(worldPos);
             return saturate(dot(rawOcclusionMask, unity_OcclusionMaskSelector));
         #endif
 
-        return 1.0;
+        return atten;
     #endif
 }
 
 // ------------------------------------------------------------------
+// Used by the deferred rendering path (in the gbuffer pass)
 fixed4 UnityGetRawBakedOcclusions(float2 lightmapUV, float3 worldPos)
 {
     #if defined (SHADOWS_SHADOWMASK)
         #if defined(LIGHTMAP_ON)
-            return UNITY_SAMPLE_TEX2D_SAMPLER(unity_ShadowMask, unity_Lightmap, lightmapUV.xy);
+            return UNITY_SAMPLE_TEX2D(unity_ShadowMask, lightmapUV.xy);
         #else
             half4 probeOcclusion = unity_ProbesOcclusion;
 
@@ -250,12 +259,41 @@ fixed4 UnityGetRawBakedOcclusions(float2 lightmapUV, float3 worldPos)
 }
 
 // ------------------------------------------------------------------
+// Used by both the forward and the deferred rendering path
 half UnityMixRealtimeAndBakedShadows(half realtimeShadowAttenuation, half bakedShadowAttenuation, half fade)
 {
+    // -- Static objects --
+    // FWD BASE PASS
+    // ShadowMask mode          = LIGHTMAP_ON + SHADOWS_SHADOWMASK + LIGHTMAP_SHADOW_MIXING
+    // Distance shadowmask mode = LIGHTMAP_ON + SHADOWS_SHADOWMASK
+    // Subtractive mode         = LIGHTMAP_ON + LIGHTMAP_SHADOW_MIXING
+    // Pure realtime direct lit = LIGHTMAP_ON
+
+    // FWD ADD PASS
+    // ShadowMask mode          = SHADOWS_SHADOWMASK + LIGHTMAP_SHADOW_MIXING
+    // Distance shadowmask mode = SHADOWS_SHADOWMASK
+    // Pure realtime direct lit = LIGHTMAP_ON
+
+    // DEFERRED LIGHTING PASS
+    // ShadowMask mode          = LIGHTMAP_ON + SHADOWS_SHADOWMASK + LIGHTMAP_SHADOW_MIXING
+    // Distance shadowmask mode = LIGHTMAP_ON + SHADOWS_SHADOWMASK
+    // Pure realtime direct lit = LIGHTMAP_ON
+
+    // -- Dynamic objects --
+    // FWD BASE PASS + FWD ADD ASS
+    // ShadowMask mode          = LIGHTMAP_SHADOW_MIXING
+    // Distance shadowmask mode = N/A
+    // Subtractive mode         = LIGHTMAP_SHADOW_MIXING (only matter for LPPV. Light probes occlusion being done on CPU)
+    // Pure realtime direct lit = N/A
+
+    // DEFERRED LIGHTING PASS
+    // ShadowMask mode          = SHADOWS_SHADOWMASK + LIGHTMAP_SHADOW_MIXING
+    // Distance shadowmask mode = SHADOWS_SHADOWMASK
+    // Pure realtime direct lit = N/A
+
     #if !defined(SHADOWS_DEPTH) && !defined(SHADOWS_SCREEN) && !defined(SHADOWS_CUBE)
-        #if defined (LIGHTMAP_SHADOW_MIXING) && !defined (SHADOWS_SHADOWMASK)
-            //In subtractive mode when there is no shadow we still want to kill
-            //the light contribution because its already baked in the lightmap.
+        #if defined(LIGHTMAP_ON) && defined (LIGHTMAP_SHADOW_MIXING) && !defined (SHADOWS_SHADOWMASK)
+            //In subtractive mode when there is no shadow we kill the light contribution as direct as been baked in the lightmap.
             return 0.0;
         #else
             return bakedShadowAttenuation;
@@ -264,33 +302,21 @@ half UnityMixRealtimeAndBakedShadows(half realtimeShadowAttenuation, half bakedS
 
     #if (SHADER_TARGET <= 20) || UNITY_STANDARD_SIMPLE
         //no fading nor blending on SM 2.0 because of instruction count limit.
-        #if defined (SHADOWS_SHADOWMASK)
+        #if defined(SHADOWS_SHADOWMASK) || defined(LIGHTMAP_SHADOW_MIXING)
             return min(realtimeShadowAttenuation, bakedShadowAttenuation);
         #else
             return realtimeShadowAttenuation;
         #endif
     #endif
 
-
-    #if defined (SHADOWS_SHADOWMASK)
-        #if defined (LIGHTMAP_SHADOW_MIXING)
-                realtimeShadowAttenuation = saturate(realtimeShadowAttenuation + fade);
-                return min(realtimeShadowAttenuation, bakedShadowAttenuation);
-        #else
-                return lerp(realtimeShadowAttenuation, bakedShadowAttenuation, fade);
-        #endif
-
-    #else //no shadowmask
-        half attenuation = saturate(realtimeShadowAttenuation + fade);
-
-        //Handle LPPV baked occlusion for subtractive mode
-        #if UNITY_LIGHT_PROBE_PROXY_VOLUME && !defined(LIGHTMAP_ON) && !UNITY_STANDARD_SIMPLE
-            if (unity_ProbeVolumeParams.x == 1.0)
-                attenuation = min(bakedShadowAttenuation, attenuation);
-        #endif
-
-        return attenuation;
+    #if defined(LIGHTMAP_SHADOW_MIXING)
+        //Subtractive or shadowmask mode
+        realtimeShadowAttenuation = saturate(realtimeShadowAttenuation + fade);
+        return min(realtimeShadowAttenuation, bakedShadowAttenuation);
     #endif
+
+    //In distance shadowmask or realtime shadow fadeout we lerp toward the baked shadows (bakedShadowAttenuation will be 1 if no baked shadows)
+    return lerp(realtimeShadowAttenuation, bakedShadowAttenuation, fade);
 }
 
 // ------------------------------------------------------------------

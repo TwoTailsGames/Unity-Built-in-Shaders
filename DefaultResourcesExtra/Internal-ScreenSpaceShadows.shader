@@ -4,6 +4,7 @@
 Shader "Hidden/Internal-ScreenSpaceShadows" {
 Properties {
     _ShadowMapTexture ("", any) = "" {}
+    _ODSWorldTexture("", 2D) = "" {}
 }
 
 CGINCLUDE
@@ -11,6 +12,7 @@ CGINCLUDE
 UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 float4 _ShadowMapTexture_TexelSize;
 #define SHADOWMAPSAMPLER_AND_TEXELSIZE_DEFINED
+sampler2D _ODSWorldTexture;
 
 #include "UnityCG.cginc"
 #include "UnityShadowLibrary.cginc"
@@ -64,7 +66,12 @@ v2f vert (appdata v)
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_TRANSFER_INSTANCE_ID(v, o);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-    float4 clipPos = UnityObjectToClipPos(v.vertex);
+    float4 clipPos;
+#if defined(STEREO_CUBEMAP_RENDER_ON)
+    clipPos = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, v.vertex));
+#else
+    clipPos = UnityObjectToClipPos(v.vertex);
+#endif
     o.pos = clipPos;
     o.uv.xy = v.texcoord;
 
@@ -223,12 +230,17 @@ inline float3 computeCameraSpacePosFromDepth(v2f i);
 fixed4 frag_hard (v2f i) : SV_Target
 {
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); // required for sampling the correct slice of the shadow map render texture array
+    float4 wpos;
+    float3 vpos;
 
-    float3 vpos = computeCameraSpacePosFromDepth(i);
-
-    float4 wpos = mul (unity_CameraToWorld, float4(vpos,1));
-
-
+#if defined(STEREO_CUBEMAP_RENDER_ON)
+    wpos.xyz = tex2D(_ODSWorldTexture, i.uv.xy).xyz;
+    wpos.w = 1.0f;
+    vpos = mul(unity_WorldToCamera, wpos).xyz;
+#else
+    vpos = computeCameraSpacePosFromDepth(i);
+    wpos = mul (unity_CameraToWorld, float4(vpos,1));
+#endif
     fixed4 cascadeWeights = GET_CASCADE_WEIGHTS (wpos, vpos.z);
     float4 shadowCoord = GET_SHADOW_COORDINATES(wpos, cascadeWeights);
 
@@ -246,11 +258,19 @@ fixed4 frag_hard (v2f i) : SV_Target
 fixed4 frag_pcfSoft(v2f i) : SV_Target
 {
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i); // required for sampling the correct slice of the shadow map render texture array
+    float4 wpos;
+    float3 vpos;
 
-    float3 vpos = computeCameraSpacePosFromDepth(i);
+#if defined(STEREO_CUBEMAP_RENDER_ON)
+    wpos.xyz = tex2D(_ODSWorldTexture, i.uv.xy).xyz;
+    wpos.w = 1.0f;
+    vpos = mul(unity_WorldToCamera, wpos).xyz;
+#else
+    vpos = computeCameraSpacePosFromDepth(i);
 
     // sample the cascade the pixel belongs to
-    float4 wpos = mul(unity_CameraToWorld, float4(vpos,1));
+    wpos = mul(unity_CameraToWorld, float4(vpos,1));
+#endif
     fixed4 cascadeWeights = GET_CASCADE_WEIGHTS(wpos, vpos.z);
     float4 coord = GET_SHADOW_COORDINATES(wpos, cascadeWeights);
 

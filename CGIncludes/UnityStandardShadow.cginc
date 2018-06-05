@@ -9,7 +9,6 @@
 
 #include "UnityCG.cginc"
 #include "UnityShaderVariables.cginc"
-#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardUtils.cginc"
 
@@ -163,7 +162,11 @@ half4 fragShadowCaster (UNITY_POSITION(vpos)
             i.tex.xy += offset;
         #endif
 
-        half alpha = tex2D(_MainTex, i.tex).a * _Color.a;
+        #if defined(_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A)
+            half alpha = _Color.a;
+        #else
+            half alpha = tex2D(_MainTex, i.tex.xy).a * _Color.a;
+        #endif
         #if defined(_ALPHATEST_ON)
             clip (alpha - _Cutoff);
         #endif

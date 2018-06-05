@@ -3,8 +3,6 @@
 #ifndef UNITY_STANDARD_PARTICLES_INCLUDED
 #define UNITY_STANDARD_PARTICLES_INCLUDED
 
-#include "UnityPBSLighting.cginc"
-
 #if _REQUIRE_UV2
 #define _FLIPBOOK_BLENDING 1
 #endif
@@ -13,13 +11,40 @@
 #define _DISTORTION_ON 1
 #endif
 
+#include "UnityPBSLighting.cginc"
+#include "UnityStandardParticleInstancing.cginc"
+
+// Particles surface shader has a lot of variants in it, but some of those do not affect
+// code generation (i.e. don't have inpact on which Input/SurfaceOutput things are read or written into).
+// Surface shader analysis done during import time skips "completely identical" shader variants, so to
+// help this process we'll turn off some features that we know are not affecting the inputs/outputs.
+//
+// If you change the logic of what the below variants do, make sure to not regress code generation though,
+// e.g. compare full "show generated code" output of the surface shader before & after the change.
+#if defined(SHADER_TARGET_SURFACE_ANALYSIS)
+    // All these only alter the color in various ways
+    #undef _COLOROVERLAY_ON
+    #undef _COLORCOLOR_ON
+    #undef _COLORADDSUBDIFF_ON
+    #undef _ALPHAMODULATE_ON
+    #undef _ALPHATEST_ON
+
+    // For inputs/outputs analysis SoftParticles and Fading are identical; so make sure to only keep one
+    // of them ever defined.
+    #if defined(SOFTPARTICLES_ON)
+        #undef SOFTPARTICLES_ON
+        #define _FADING_ON
+    #endif
+#endif
+
+
 // Vertex shader input
 struct appdata_particles
 {
     float4 vertex : POSITION;
     float3 normal : NORMAL;
-    float4 color : COLOR;
-    #if defined(_FLIPBOOK_BLENDING)
+    fixed4 color : COLOR;
+    #if defined(_FLIPBOOK_BLENDING) && !defined(UNITY_PARTICLE_INSTANCING_ENABLED)
     float4 texcoords : TEXCOORD0;
     float texcoordBlend : TEXCOORD1;
     #else
@@ -28,6 +53,7 @@ struct appdata_particles
     #if defined(_NORMALMAP)
     float4 tangent : TANGENT;
     #endif
+    UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 // Surface shader input
@@ -136,15 +162,34 @@ half3 HSVtoRGB(half3 arg1)
 }
 #endif
 
-// Flipbook vertex function
-#if defined(_FLIPBOOK_BLENDING)
-#define vertTexcoord(v, o) \
-    o.texcoord = v.texcoords.xy; \
-    o.texcoord2AndBlend.xy = v.texcoords.zw; \
-    o.texcoord2AndBlend.z = v.texcoordBlend;
+// Color function
+#if defined(UNITY_PARTICLE_INSTANCING_ENABLED)
+#define vertColor(c) \
+        vertInstancingColor(c);
 #else
-#define vertTexcoord(v, o) \
-    o.texcoord = TRANSFORM_TEX(v.texcoords.xy, _MainTex);
+#define vertColor(c)
+#endif
+
+// Flipbook vertex function
+#if defined(UNITY_PARTICLE_INSTANCING_ENABLED)
+    #if defined(_FLIPBOOK_BLENDING)
+    #define vertTexcoord(v, o) \
+        vertInstancingUVs(v.texcoords.xy, o.texcoord, o.texcoord2AndBlend);
+    #else
+    #define vertTexcoord(v, o) \
+        vertInstancingUVs(v.texcoords.xy, o.texcoord); \
+        o.texcoord = TRANSFORM_TEX(o.texcoord, _MainTex);
+    #endif
+#else
+    #if defined(_FLIPBOOK_BLENDING)
+    #define vertTexcoord(v, o) \
+        o.texcoord = v.texcoords.xy; \
+        o.texcoord2AndBlend.xy = v.texcoords.zw; \
+        o.texcoord2AndBlend.z = v.texcoordBlend;
+    #else
+    #define vertTexcoord(v, o) \
+        o.texcoord = TRANSFORM_TEX(v.texcoords.xy, _MainTex);
+    #endif
 #endif
 
 // Fading vertex function
@@ -229,6 +274,7 @@ void vert (inout appdata_particles v, out Input o)
     UNITY_INITIALIZE_OUTPUT(Input, o);
     float4 clipPosition = UnityObjectToClipPos(v.vertex);
 
+    vertColor(v.color);
     vertTexcoord(v, o);
     vertFading(o);
     vertDistortion(o);
@@ -286,14 +332,17 @@ void surf (Input IN, inout SurfaceOutputStandard o)
     #endif
 }
 
-
 void vertParticleUnlit (appdata_particles v, out VertexOutput o)
 {
+    UNITY_SETUP_INSTANCE_ID(v);
+
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
     float4 clipPosition = UnityObjectToClipPos(v.vertex);
     o.vertex = clipPosition;
     o.color = v.color;
 
+    vertColor(o.color);
     vertTexcoord(v, o);
     vertFading(o);
     vertDistortion(o);

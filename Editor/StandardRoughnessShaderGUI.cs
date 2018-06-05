@@ -5,15 +5,8 @@ using UnityEngine;
 
 namespace UnityEditor
 {
-    internal class StandardShaderGUI : ShaderGUI
+    internal class StandardRoughnessShaderGUI : ShaderGUI
     {
-        private enum WorkflowMode
-        {
-            Specular,
-            Metallic,
-            Dielectric
-        }
-
         public enum BlendMode
         {
             Opaque,
@@ -22,23 +15,14 @@ namespace UnityEditor
             Transparent // Physically plausible transparency mode, implemented as alpha pre-multiply
         }
 
-        public enum SmoothnessMapChannel
-        {
-            SpecularMetallicAlpha,
-            AlbedoAlpha,
-        }
-
         private static class Styles
         {
             public static GUIContent uvSetLabel = EditorGUIUtility.TrTextContent("UV Set");
 
             public static GUIContent albedoText = EditorGUIUtility.TrTextContent("Albedo", "Albedo (RGB) and Transparency (A)");
             public static GUIContent alphaCutoffText = EditorGUIUtility.TrTextContent("Alpha Cutoff", "Threshold for alpha cutoff");
-            public static GUIContent specularMapText = EditorGUIUtility.TrTextContent("Specular", "Specular (RGB) and Smoothness (A)");
             public static GUIContent metallicMapText = EditorGUIUtility.TrTextContent("Metallic", "Metallic (R) and Smoothness (A)");
-            public static GUIContent smoothnessText = EditorGUIUtility.TrTextContent("Smoothness", "Smoothness value");
-            public static GUIContent smoothnessScaleText = EditorGUIUtility.TrTextContent("Smoothness", "Smoothness scale factor");
-            public static GUIContent smoothnessMapChannelText = EditorGUIUtility.TrTextContent("Source", "Smoothness texture and channel");
+            public static GUIContent roughnessText = EditorGUIUtility.TrTextContent("Roughness", "Roughness value");
             public static GUIContent highlightsText = EditorGUIUtility.TrTextContent("Specular Highlights", "Specular Highlights");
             public static GUIContent reflectionsText = EditorGUIUtility.TrTextContent("Reflections", "Glossy Reflections");
             public static GUIContent normalMapText = EditorGUIUtility.TrTextContent("Normal Map", "Normal Map");
@@ -61,13 +45,10 @@ namespace UnityEditor
         MaterialProperty albedoMap = null;
         MaterialProperty albedoColor = null;
         MaterialProperty alphaCutoff = null;
-        MaterialProperty specularMap = null;
-        MaterialProperty specularColor = null;
         MaterialProperty metallicMap = null;
         MaterialProperty metallic = null;
-        MaterialProperty smoothness = null;
-        MaterialProperty smoothnessScale = null;
-        MaterialProperty smoothnessMapChannel = null;
+        MaterialProperty roughness = null;
+        MaterialProperty roughnessMap = null;
         MaterialProperty highlights = null;
         MaterialProperty reflections = null;
         MaterialProperty bumpScale = null;
@@ -85,7 +66,6 @@ namespace UnityEditor
         MaterialProperty uvSetSecondary = null;
 
         MaterialEditor m_MaterialEditor;
-        WorkflowMode m_WorkflowMode = WorkflowMode.Specular;
 
         bool m_FirstTimeApply = true;
 
@@ -95,19 +75,10 @@ namespace UnityEditor
             albedoMap = FindProperty("_MainTex", props);
             albedoColor = FindProperty("_Color", props);
             alphaCutoff = FindProperty("_Cutoff", props);
-            specularMap = FindProperty("_SpecGlossMap", props, false);
-            specularColor = FindProperty("_SpecColor", props, false);
             metallicMap = FindProperty("_MetallicGlossMap", props, false);
             metallic = FindProperty("_Metallic", props, false);
-            if (specularMap != null && specularColor != null)
-                m_WorkflowMode = WorkflowMode.Specular;
-            else if (metallicMap != null && metallic != null)
-                m_WorkflowMode = WorkflowMode.Metallic;
-            else
-                m_WorkflowMode = WorkflowMode.Dielectric;
-            smoothness = FindProperty("_Glossiness", props);
-            smoothnessScale = FindProperty("_GlossMapScale", props, false);
-            smoothnessMapChannel = FindProperty("_SmoothnessTextureChannel", props, false);
+            roughness = FindProperty("_Glossiness", props);
+            roughnessMap = FindProperty("_SpecGlossMap", props);
             highlights = FindProperty("_SpecularHighlights", props, false);
             reflections = FindProperty("_GlossyReflections", props, false);
             bumpScale = FindProperty("_BumpScale", props);
@@ -136,7 +107,7 @@ namespace UnityEditor
             // Do this before any GUI code has been issued to prevent layout issues in subsequent GUILayout statements (case 780071)
             if (m_FirstTimeApply)
             {
-                MaterialChanged(material, m_WorkflowMode);
+                MaterialChanged(material);
                 m_FirstTimeApply = false;
             }
 
@@ -156,8 +127,9 @@ namespace UnityEditor
                 // Primary properties
                 GUILayout.Label(Styles.primaryMapsText, EditorStyles.boldLabel);
                 DoAlbedoArea(material);
-                DoSpecularMetallicArea();
-                DoNormalArea();
+                m_MaterialEditor.TexturePropertySingleLine(Styles.metallicMapText, metallicMap, metallicMap.textureValue != null ? null : metallic);
+                m_MaterialEditor.TexturePropertySingleLine(Styles.roughnessText, roughnessMap, roughnessMap.textureValue != null ? null : roughness);
+                m_MaterialEditor.TexturePropertySingleLine(Styles.normalMapText, bumpMap, bumpMap.textureValue != null ? bumpScale : null);
                 m_MaterialEditor.TexturePropertySingleLine(Styles.heightMapText, heightMap, heightMap.textureValue != null ? heigtMapScale : null);
                 m_MaterialEditor.TexturePropertySingleLine(Styles.occlusionText, occlusionMap, occlusionMap.textureValue != null ? occlusionStrength : null);
                 m_MaterialEditor.TexturePropertySingleLine(Styles.detailMaskText, detailMask);
@@ -186,7 +158,7 @@ namespace UnityEditor
             if (EditorGUI.EndChangeCheck())
             {
                 foreach (var obj in blendMode.targets)
-                    MaterialChanged((Material)obj, m_WorkflowMode);
+                    MaterialChanged((Material)obj);
             }
 
             EditorGUILayout.Space();
@@ -195,16 +167,6 @@ namespace UnityEditor
             GUILayout.Label(Styles.advancedText, EditorStyles.boldLabel);
             m_MaterialEditor.EnableInstancingField();
             m_MaterialEditor.DoubleSidedGIField();
-        }
-
-        internal void DetermineWorkflow(MaterialProperty[] props)
-        {
-            if (FindProperty("_SpecGlossMap", props, false) != null && FindProperty("_SpecColor", props, false) != null)
-                m_WorkflowMode = WorkflowMode.Specular;
-            else if (FindProperty("_MetallicGlossMap", props, false) != null && FindProperty("_Metallic", props, false) != null)
-                m_WorkflowMode = WorkflowMode.Metallic;
-            else
-                m_WorkflowMode = WorkflowMode.Dielectric;
         }
 
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)
@@ -237,8 +199,7 @@ namespace UnityEditor
             }
             material.SetFloat("_Mode", (float)blendMode);
 
-            DetermineWorkflow(MaterialEditor.GetMaterialProperties(new Material[] { material }));
-            MaterialChanged(material, m_WorkflowMode);
+            MaterialChanged(material);
         }
 
         void BlendModePopup()
@@ -255,18 +216,6 @@ namespace UnityEditor
             }
 
             EditorGUI.showMixedValue = false;
-        }
-
-        void DoNormalArea()
-        {
-            m_MaterialEditor.TexturePropertySingleLine(Styles.normalMapText, bumpMap, bumpMap.textureValue != null ? bumpScale : null);
-            if (bumpScale.floatValue != 1 && UnityEditorInternal.InternalEditorUtility.IsMobilePlatform(EditorUserBuildSettings.activeBuildTarget))
-                if (m_MaterialEditor.HelpBoxWithButton(
-                        EditorGUIUtility.TrTextContent("Bump scale is not supported on mobile platforms"),
-                        EditorGUIUtility.TrTextContent("Fix Now")))
-                {
-                    bumpScale.floatValue = 1;
-                }
         }
 
         void DoAlbedoArea(Material material)
@@ -296,36 +245,6 @@ namespace UnityEditor
                 // change the GI flag and fix it up with emissive as black if necessary
                 m_MaterialEditor.LightmapEmissionFlagsProperty(MaterialEditor.kMiniTextureFieldLabelIndentLevel, true);
             }
-        }
-
-        void DoSpecularMetallicArea()
-        {
-            bool hasGlossMap = false;
-            if (m_WorkflowMode == WorkflowMode.Specular)
-            {
-                hasGlossMap = specularMap.textureValue != null;
-                m_MaterialEditor.TexturePropertySingleLine(Styles.specularMapText, specularMap, hasGlossMap ? null : specularColor);
-            }
-            else if (m_WorkflowMode == WorkflowMode.Metallic)
-            {
-                hasGlossMap = metallicMap.textureValue != null;
-                m_MaterialEditor.TexturePropertySingleLine(Styles.metallicMapText, metallicMap, hasGlossMap ? null : metallic);
-            }
-
-            bool showSmoothnessScale = hasGlossMap;
-            if (smoothnessMapChannel != null)
-            {
-                int smoothnessChannel = (int)smoothnessMapChannel.floatValue;
-                if (smoothnessChannel == (int)SmoothnessMapChannel.AlbedoAlpha)
-                    showSmoothnessScale = true;
-            }
-
-            int indentation = 2; // align with labels of texture properties
-            m_MaterialEditor.ShaderProperty(showSmoothnessScale ? smoothnessScale : smoothness, showSmoothnessScale ? Styles.smoothnessScaleText : Styles.smoothnessText, indentation);
-
-            ++indentation;
-            if (smoothnessMapChannel != null)
-                m_MaterialEditor.ShaderProperty(smoothnessMapChannel, Styles.smoothnessMapChannelText, indentation);
         }
 
         public static void SetupMaterialWithBlendMode(Material material, BlendMode blendMode)
@@ -375,24 +294,13 @@ namespace UnityEditor
             }
         }
 
-        static SmoothnessMapChannel GetSmoothnessMapChannel(Material material)
-        {
-            int ch = (int)material.GetFloat("_SmoothnessTextureChannel");
-            if (ch == (int)SmoothnessMapChannel.AlbedoAlpha)
-                return SmoothnessMapChannel.AlbedoAlpha;
-            else
-                return SmoothnessMapChannel.SpecularMetallicAlpha;
-        }
-
-        static void SetMaterialKeywords(Material material, WorkflowMode workflowMode)
+        static void SetMaterialKeywords(Material material)
         {
             // Note: keywords must be based on Material value not on MaterialProperty due to multi-edit & material animation
             // (MaterialProperty value might come from renderer material property block)
             SetKeyword(material, "_NORMALMAP", material.GetTexture("_BumpMap") || material.GetTexture("_DetailNormalMap"));
-            if (workflowMode == WorkflowMode.Specular)
-                SetKeyword(material, "_SPECGLOSSMAP", material.GetTexture("_SpecGlossMap"));
-            else if (workflowMode == WorkflowMode.Metallic)
-                SetKeyword(material, "_METALLICGLOSSMAP", material.GetTexture("_MetallicGlossMap"));
+            SetKeyword(material, "_SPECGLOSSMAP", material.GetTexture("_SpecGlossMap"));
+            SetKeyword(material, "_METALLICGLOSSMAP", material.GetTexture("_MetallicGlossMap"));
             SetKeyword(material, "_PARALLAXMAP", material.GetTexture("_ParallaxMap"));
             SetKeyword(material, "_DETAIL_MULX2", material.GetTexture("_DetailAlbedoMap") || material.GetTexture("_DetailNormalMap"));
 
@@ -402,18 +310,13 @@ namespace UnityEditor
             MaterialEditor.FixupEmissiveFlag(material);
             bool shouldEmissionBeEnabled = (material.globalIlluminationFlags & MaterialGlobalIlluminationFlags.EmissiveIsBlack) == 0;
             SetKeyword(material, "_EMISSION", shouldEmissionBeEnabled);
-
-            if (material.HasProperty("_SmoothnessTextureChannel"))
-            {
-                SetKeyword(material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", GetSmoothnessMapChannel(material) == SmoothnessMapChannel.AlbedoAlpha);
-            }
         }
 
-        static void MaterialChanged(Material material, WorkflowMode workflowMode)
+        static void MaterialChanged(Material material)
         {
             SetupMaterialWithBlendMode(material, (BlendMode)material.GetFloat("_Mode"));
 
-            SetMaterialKeywords(material, workflowMode);
+            SetMaterialKeywords(material);
         }
 
         static void SetKeyword(Material m, string keyword, bool state)

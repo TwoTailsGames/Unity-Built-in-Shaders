@@ -3,6 +3,7 @@
 Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
     Properties{
         _MainTex("Base (RGB) Alpha (A)", 2D) = "white" {}
+        _NormalTex("Base (RGB) Alpha (A)", 2D) = "white" {}
     }
 
         SubShader{
@@ -28,11 +29,17 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
                     UNITY_FOG_COORDS(1)
                     UNITY_VERTEX_OUTPUT_STEREO
                     float4 screenPos : TEXCOORD2;
-
+#if defined(ALBEDO_NORMAL_LIGHTING)
+                    float3 viewDir : TEXCOORD3;
+#endif
                 };
 
-
-
+#if defined(ALBEDO_NORMAL_LIGHTING)
+                CBUFFER_START(UnityTerrainImposter)
+                    float3 _TerrainTreeLightDirections[4];
+                    float4 _TerrainTreeLightColors[4];
+                CBUFFER_END
+#endif
         void CameraFacingBillboardVert(inout float4 pos, float2 offset, float offsetz)
         {
             float3 vertViewVector = pos.xyz - _TreeBillboardCameraPos.xyz;
@@ -66,17 +73,38 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
                     o.pos = UnityObjectToClipPos(v.vertex);
                     o.uv.x = v.texcoord.x;
                     o.uv.y = v.texcoord.y > 0;
-
+#if defined(ALBEDO_NORMAL_LIGHTING)
+                    o.viewDir = normalize(ObjSpaceViewDir(v.vertex));
+#endif
                     o.color = v.color;
                     o.screenPos = ComputeScreenPos(o.pos);
                     UNITY_TRANSFER_FOG(o,o.pos);
                     return o;
                 }
 
+                half3 CalcTreeLighting(half3 viewDir, half3 lightColor, half3 lightDir, half3 normal)
+                {
+                    half nl = saturate(dot(lightDir, normal));
+                    return nl * lightColor;
+                }
+
                 sampler2D _MainTex;
+                sampler2D _NormalTex;
+
                 fixed4 frag(v2f input) : SV_Target
                 {
                     fixed4 col = tex2D(_MainTex, input.uv.xy);
+#if defined(ALBEDO_NORMAL_LIGHTING)
+                    fixed4 normal = tex2D(_NormalTex, input.uv.xy);
+                    fixed specular = normal.a * 128.0;
+                    normal = (normal - 0.5) * 2;
+                    half3 albedo = col.rgb;
+                    half3 light = UNITY_LIGHTMODEL_AMBIENT;
+                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[0].rgb, _TerrainTreeLightDirections[0], normal);
+                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[1].rgb, _TerrainTreeLightDirections[1], normal);
+                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[2].rgb, _TerrainTreeLightDirections[2], normal);
+                    col.rgb = albedo * light;
+#endif
                     col.rgb *= input.color.rgb;
                     float coverage = ComputeAlphaCoverage(input.screenPos, input.uv.z);
                     col.a *= coverage;

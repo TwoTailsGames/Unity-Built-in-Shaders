@@ -12,6 +12,13 @@
 #define UNITY_HALF_PI       1.57079632679f
 #define UNITY_INV_HALF_PI   0.636619772367f
 
+// Should SH (light probe / ambient) calculations be performed?
+// - When both static and dynamic lightmaps are available, no SH evaluation is performed
+// - When static and dynamic lightmaps are not available, SH evaluation is always performed
+// - For low level LODs, static lightmap and real-time GI from light probes can be combined together
+// - Passes that don't do ambient (additive, shadowcaster etc.) should not do SH either.
+#define UNITY_SHOULD_SAMPLE_SH (defined(LIGHTPROBE_SH) && !defined(UNITY_PASS_FORWARDADD) && !defined(UNITY_PASS_PREPASSBASE) && !defined(UNITY_PASS_SHADOWCASTER) && !defined(UNITY_PASS_META))
+
 #include "UnityShaderVariables.cginc"
 #include "UnityShaderUtilities.cginc"
 #include "UnityInstancing.cginc"
@@ -36,7 +43,7 @@
 #define USING_LIGHT_MULTI_COMPILE
 #endif
 
-#if (defined(SHADER_API_D3D11) && !defined(SHADER_API_XBOXONE))
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH) // D3D11, D3D12, XB1, PS4, iOS, macOS, tvOS, glcore, gles3, webgl2.0, Switch
 // Real-support for depth-format cube shadow map.
 #define SHADOWS_CUBE_IN_DEPTH_TEX
 #endif
@@ -47,13 +54,6 @@
 // These constants must be kept in sync with RGBMRanges.h
 #define LIGHTMAP_RGBM_SCALE 5.0
 #define EMISSIVE_RGBM_SCALE 97.0
-
-// Should SH (light probe / ambient) calculations be performed?
-// - When both static and dynamic lightmaps are available, no SH evaluation is performed
-// - When static and dynamic lightmaps are not available, SH evaluation is always performed
-// - For low level LODs, static lightmap and real-time GI from light probes can be combined together
-// - Passes that don't do ambient (additive, shadowcaster etc.) should not do SH either.
-#define UNITY_SHOULD_SAMPLE_SH (defined(LIGHTPROBE_SH) && !defined(UNITY_PASS_FORWARDADD) && !defined(UNITY_PASS_PREPASSBASE) && !defined(UNITY_PASS_SHADOWCASTER) && !defined(UNITY_PASS_META))
 
 struct appdata_base {
     float4 vertex : POSITION;
@@ -891,20 +891,24 @@ float4 UnityClipSpaceShadowCasterPos(float3 vertex, float3 normal)
 
 
 float4 UnityApplyLinearShadowBias(float4 clipPos)
-{
-#if defined(UNITY_REVERSED_Z)
 
+{
     // For point lights that support depth cube map, the bias is applied in the fragment shader sampling the shadow map.
     // This is because the legacy behaviour for point light shadow map cannot be implemented by offseting the vertex position
     // in the vertex shader generating the shadow map.
-#   if !(defined(SHADOWS_CUBE) && defined(SHADOWS_CUBE_IN_DEPTH_TEX))
-    // We use max/min instead of clamp to ensure proper handling of the rare case
-    // where both numerator and denominator are zero and the fraction becomes NaN.
-    clipPos.z += max(-1, min(unity_LightShadowBias.x / clipPos.w, 0));
-#   endif
+#if !(defined(SHADOWS_CUBE) && defined(SHADOWS_CUBE_IN_DEPTH_TEX))
+    #if defined(UNITY_REVERSED_Z)
+        // We use max/min instead of clamp to ensure proper handling of the rare case
+        // where both numerator and denominator are zero and the fraction becomes NaN.
+        clipPos.z += max(-1, min(unity_LightShadowBias.x / clipPos.w, 0));
+    #else
+        clipPos.z += saturate(unity_LightShadowBias.x/clipPos.w);
+    #endif
+#endif
+
+#if defined(UNITY_REVERSED_Z)
     float clamped = min(clipPos.z, clipPos.w*UNITY_NEAR_CLIP_VALUE);
 #else
-    clipPos.z += saturate(unity_LightShadowBias.x/clipPos.w);
     float clamped = max(clipPos.z, clipPos.w*UNITY_NEAR_CLIP_VALUE);
 #endif
     clipPos.z = lerp(clipPos.z, clamped, unity_LightShadowBias.y);
@@ -1010,13 +1014,19 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
     #if (SHADER_TARGET < 30) || defined(SHADER_API_MOBILE)
         // mobile or SM2.0: calculate fog factor per-vertex
         #define UNITY_TRANSFER_FOG(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.fogCoord.x = unityFogFactor
+        #define UNITY_TRANSFER_FOG_COMBINED_WITH_TSPACE(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.tSpace1.y = tangentSign; o.tSpace2.y = unityFogFactor
+        #define UNITY_TRANSFER_FOG_COMBINED_WITH_WORLD_POS(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.worldPos.w = unityFogFactor
     #else
         // SM3.0 and PC/console: calculate fog distance per-vertex, and fog factor per-pixel
         #define UNITY_TRANSFER_FOG(o,outpos) o.fogCoord.x = (outpos).z
+        #define UNITY_TRANSFER_FOG_COMBINED_WITH_TSPACE(o,outpos) o.tSpace2.y = (outpos).z
+        #define UNITY_TRANSFER_FOG_COMBINED_WITH_WORLD_POS(o,outpos) o.worldPos.w = (outpos).z
     #endif
 #else
     #define UNITY_FOG_COORDS(idx)
     #define UNITY_TRANSFER_FOG(o,outpos)
+    #define UNITY_TRANSFER_FOG_COMBINED_WITH_TSPACE(o,outpos)
+    #define UNITY_TRANSFER_FOG_COMBINED_WITH_WORLD_POS(o,outpos)
 #endif
 
 #define UNITY_FOG_LERP_COLOR(col,fogCol,fogFac) col.rgb = lerp((fogCol).rgb, (col).rgb, saturate(fogFac))
@@ -1030,8 +1040,14 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
         // SM3.0 and PC/console: calculate fog factor and lerp fog color
         #define UNITY_APPLY_FOG_COLOR(coord,col,fogCol) UNITY_CALC_FOG_FACTOR((coord).x); UNITY_FOG_LERP_COLOR(col,fogCol,unityFogFactor)
     #endif
+    #define UNITY_EXTRACT_FOG(name) float _unity_fogCoord = name.fogCoord
+    #define UNITY_EXTRACT_FOG_FROM_TSPACE(name) float _unity_fogCoord = name.tSpace2.y
+    #define UNITY_EXTRACT_FOG_FROM_WORLD_POS(name) float _unity_fogCoord = name.worldPos.w
 #else
     #define UNITY_APPLY_FOG_COLOR(coord,col,fogCol)
+    #define UNITY_EXTRACT_FOG(name)
+    #define UNITY_EXTRACT_FOG_FROM_TSPACE(name)
+    #define UNITY_EXTRACT_FOG_FROM_WORLD_POS(name)
 #endif
 
 #ifdef UNITY_PASS_FORWARDADD
@@ -1040,8 +1056,28 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
     #define UNITY_APPLY_FOG(coord,col) UNITY_APPLY_FOG_COLOR(coord,col,unity_FogColor)
 #endif
 
-
 // ------------------------------------------------------------------
+//  TBN helpers
+#define UNITY_EXTRACT_TBN_0(name) fixed3 _unity_tbn_0 = name.tSpace0.xyz
+#define UNITY_EXTRACT_TBN_1(name) fixed3 _unity_tbn_1 = name.tSpace1.xyz
+#define UNITY_EXTRACT_TBN_2(name) fixed3 _unity_tbn_2 = name.tSpace2.xyz
+
+#define UNITY_EXTRACT_TBN(name) UNITY_EXTRACT_TBN_0(name); UNITY_EXTRACT_TBN_1(name); UNITY_EXTRACT_TBN_2(name)
+
+#define UNITY_EXTRACT_TBN_T(name) fixed3 _unity_tangent = fixed3(name.tSpace0.x, name.tSpace1.x, name.tSpace2.x)
+#define UNITY_EXTRACT_TBN_N(name) fixed3 _unity_normal = fixed3(name.tSpace0.z, name.tSpace1.z, name.tSpace2.z)
+#define UNITY_EXTRACT_TBN_B(name) fixed3 _unity_binormal = cross(_unity_normal, _unity_tangent)
+#define UNITY_CORRECT_TBN_B_SIGN(name) _unity_binormal *= name.tSpace1.y;
+#define UNITY_RECONSTRUCT_TBN_0 fixed3 _unity_tbn_0 = fixed3(_unity_tangent.x, _unity_binormal.x, _unity_normal.x)
+#define UNITY_RECONSTRUCT_TBN_1 fixed3 _unity_tbn_1 = fixed3(_unity_tangent.y, _unity_binormal.y, _unity_normal.y)
+#define UNITY_RECONSTRUCT_TBN_2 fixed3 _unity_tbn_2 = fixed3(_unity_tangent.z, _unity_binormal.z, _unity_normal.z)
+
+#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
+    #define UNITY_RECONSTRUCT_TBN(name) UNITY_EXTRACT_TBN_T(name); UNITY_EXTRACT_TBN_N(name); UNITY_EXTRACT_TBN_B(name); UNITY_CORRECT_TBN_B_SIGN(name); UNITY_RECONSTRUCT_TBN_0; UNITY_RECONSTRUCT_TBN_1; UNITY_RECONSTRUCT_TBN_2
+#else
+    #define UNITY_RECONSTRUCT_TBN(name) UNITY_EXTRACT_TBN(name)
+#endif
+
 //  LOD cross fade helpers
 // keep all the old macros
 #define UNITY_DITHER_CROSSFADE_COORDS

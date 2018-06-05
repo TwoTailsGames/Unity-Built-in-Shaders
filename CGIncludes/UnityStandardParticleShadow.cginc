@@ -8,9 +8,9 @@
 
 #include "UnityCG.cginc"
 #include "UnityShaderVariables.cginc"
-#include "UnityInstancing.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardUtils.cginc"
+#include "UnityStandardParticleInstancing.cginc"
 
 #if _REQUIRE_UV2
     #define _FLIPBOOK_BLENDING 1
@@ -63,7 +63,7 @@ struct VertexInput
     float4 vertex   : POSITION;
     float3 normal   : NORMAL;
     fixed4 color    : COLOR;
-    #ifdef _FLIPBOOK_BLENDING
+    #if defined(_FLIPBOOK_BLENDING) && !defined(UNITY_PARTICLE_INSTANCING_ENABLED)
         float4 texcoords : TEXCOORD0;
         float texcoordBlend : TEXCOORD1;
     #else
@@ -114,9 +114,13 @@ void vertParticleShadowCaster (VertexInput v,
     TRANSFER_SHADOW_CASTER_NOPOS(o,opos)
     #ifdef UNITY_STANDARD_USE_SHADOW_UVS
         #ifdef _FLIPBOOK_BLENDING
-            o.texcoord = v.texcoords.xy;
-            o.texcoord2AndBlend.xy = v.texcoords.zw;
-            o.texcoord2AndBlend.z = v.texcoordBlend;
+            #ifdef UNITY_PARTICLE_INSTANCING_ENABLED
+                vertInstancingUVs(v.texcoords.xy, o.texcoord, o.texcoord2AndBlend);
+            #else
+                o.texcoord = v.texcoords.xy;
+                o.texcoord2AndBlend.xy = v.texcoords.zw;
+                o.texcoord2AndBlend.z = v.texcoordBlend;
+            #endif
         #else
             o.texcoord = TRANSFORM_TEX(v.texcoords.xy, _MainTex);
         #endif

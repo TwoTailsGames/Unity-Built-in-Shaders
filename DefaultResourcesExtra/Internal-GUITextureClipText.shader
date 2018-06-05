@@ -59,7 +59,7 @@ Shader "Hidden/Internal-GUITextureClipText"
         Tags { "ForceSupported" = "True" }
 
         Lighting Off
-        Blend SrcAlpha OneMinusSrcAlpha, One One
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         Cull Off
         ZWrite Off
         ZTest Always

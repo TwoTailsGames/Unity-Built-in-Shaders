@@ -77,6 +77,10 @@ CBUFFER_START(UnityPerCamera)
     // z = unused
     // w = 1.0 if camera is ortho, 0.0 if perspective
     float4 unity_OrthoParams;
+#if defined(STEREO_CUBEMAP_RENDER_ON)
+    //x-component is the half stereo separation value, which a positive for right eye and negative for left eye. The y,z,w components are unused.
+    float4 unity_HalfStereoSeparation;
+#endif
 CBUFFER_END
 
 
@@ -246,15 +250,8 @@ CBUFFER_END
 UNITY_DECLARE_TEX2D_HALF(unity_Lightmap);
 // Directional lightmap (always used with unity_Lightmap, so can share sampler)
 UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(unity_LightmapInd);
-// Combined light masks
-#if defined (SHADOWS_SHADOWMASK)
-    #if defined(LIGHTMAP_ON)
-        //Can share sampler if lightmap are used.
-        UNITY_DECLARE_TEX2D_NOSAMPLER(unity_ShadowMask);
-    #else
-        UNITY_DECLARE_TEX2D(unity_ShadowMask);
-    #endif
-#endif
+// Shadowmasks
+UNITY_DECLARE_TEX2D(unity_ShadowMask);
 
 // Dynamic GI lightmap
 UNITY_DECLARE_TEX2D(unity_DynamicLightmap);

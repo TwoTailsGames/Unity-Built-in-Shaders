@@ -76,9 +76,11 @@ Shader "UI/Default"
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
+            sampler2D _MainTex;
             fixed4 _Color;
             fixed4 _TextureSampleAdd;
             float4 _ClipRect;
+            float4 _MainTex_ST;
 
             v2f vert(appdata_t v)
             {
@@ -88,13 +90,11 @@ Shader "UI/Default"
                 OUT.worldPosition = v.vertex;
                 OUT.vertex = UnityObjectToClipPos(OUT.worldPosition);
 
-                OUT.texcoord = v.texcoord;
+                OUT.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
 
                 OUT.color = v.color * _Color;
                 return OUT;
             }
-
-            sampler2D _MainTex;
 
             fixed4 frag(v2f IN) : SV_Target
             {

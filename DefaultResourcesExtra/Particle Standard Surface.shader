@@ -77,6 +77,8 @@ Shader "Particles/Standard Surface"
             #pragma shader_feature _METALLICGLOSSMAP
             #pragma shader_feature _REQUIRE_UV2
             #pragma multi_compile_shadowcaster
+            #pragma multi_compile_instancing
+            #pragma instancing_options procedural:vertInstancingSetup
 
             #pragma vertex vertParticleShadowCaster
             #pragma fragment fragParticleShadowCaster
@@ -88,6 +90,8 @@ Shader "Particles/Standard Surface"
         CGPROGRAM
         #pragma surface surf Standard nolightmap nometa noforwardadd keepalpha vertex:vert
         #pragma multi_compile __ SOFTPARTICLES_ON
+        #pragma multi_compile_instancing
+        #pragma instancing_options procedural:vertInstancingSetup
         #pragma target 3.5
 
         #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON

@@ -3,23 +3,24 @@
 #ifndef HLSL_SUPPORT_INCLUDED
 #define HLSL_SUPPORT_INCLUDED
 
-// Define the underlying compiler being used. Skips this step if the compiler is already specified,
-// which may happen during development of new shader compiler for certain platform
-#if !defined(UNITY_COMPILER_CG) && !defined(UNITY_COMPILER_HLSL) && !defined(UNITY_COMPILER_HLSL2GLSL) && !defined(UNITY_COMPILER_HLSLCC)
-    #if defined(SHADER_TARGET_SURFACE_ANALYSIS)
-        // Cg is used for surface shader analysis step
-        #define UNITY_COMPILER_CG
-    #elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN)
-        // N.B. For Metal, the correct flags are set during internal shader compiler setup
-        #define UNITY_COMPILER_HLSL
-        #define UNITY_COMPILER_HLSLCC
-    #elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE)
-        #define UNITY_COMPILER_HLSL
-    #elif defined(SHADER_TARGET_GLSL) || defined(SHADER_API_WIIU)
-        #define UNITY_COMPILER_HLSL2GLSL
-    #else
-        #define UNITY_COMPILER_CG
-    #endif
+#if defined(SHADER_TARGET_SURFACE_ANALYSIS)
+    // surface shader analysis is complicated, and is done via two compilers:
+    // - Mojoshader for source level analysis (to find out structs/functions with their members & parameters).
+    //   This step can understand DX9 style HLSL syntax.
+    // - HLSL compiler for "what actually got read & written to" (taking dead code etc into account), via a dummy
+    //   compilation and reflection of the shader. This step can understand DX9 & DX11 HLSL syntax.
+    // Neither of these compilers are "Cg", but we used to use Cg in the past for this; keep the macro
+    // name intact in case some user-written shaders depend on it being that.
+    #define UNITY_COMPILER_CG
+#elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || (defined(UNITY_PREFER_HLSLCC) && defined(SHADER_API_GLES))
+    #define UNITY_COMPILER_HLSL
+    #define UNITY_COMPILER_HLSLCC
+#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE)
+    #define UNITY_COMPILER_HLSL
+#elif defined(SHADER_TARGET_GLSL) || defined(SHADER_API_WIIU)
+    #define UNITY_COMPILER_HLSL2GLSL
+#else
+    #define UNITY_COMPILER_CG
 #endif
 
 #if defined(STEREO_MULTIVIEW_ON) && (defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)) && !(defined(SHADER_API_SWITCH))
@@ -147,7 +148,7 @@
 
 // Define "fixed" precision to be half on non-GLSL platforms,
 // and sampler*_prec to be just simple samplers.
-#if !defined(SHADER_TARGET_GLSL) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !(defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+#if !defined(SHADER_TARGET_GLSL) && !(defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) && !defined(SHADER_API_PSSL) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !defined(SHADER_API_SWITCH)
 #define fixed half
 #define fixed2 half2
 #define fixed3 half3
@@ -169,8 +170,8 @@
 #define Texture3D_half Texture3D
 #endif
 
-#if defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
-// GLES3 and later via HLSLcc, use DX11.1 partial precision for translation
+#if (defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL)) || defined(SHADER_API_SWITCH)
+// with HLSLcc, use DX11.1 partial precision for translation
 // we specifically define fixed to be float16 (same as half) as all new GPUs seems to agree on float16 being minimal precision float
 #define fixed min16float
 #define fixed2 min16float2
@@ -186,9 +187,9 @@
 #define half2x2 min16float2x2
 #define half3x3 min16float3x3
 #define half4x4 min16float4x4
-#endif // defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || (defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+#endif
 
-#if (!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+#if (!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL))
 #define fixed float
 #define fixed2 float2
 #define fixed3 float3
@@ -203,14 +204,13 @@
 #define half2x2 float2x2
 #define half3x3 float3x3
 #define half4x4 float4x4
-#endif // (!defined(SHADER_API_MOBILE) && defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
-
+#endif
 
 // Define min16float/min10float to be half/fixed on non-D3D11 platforms.
 // This allows people to use min16float and friends in their shader code if they
 // really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
 // but if they target WSA/WP exclusively that's fine).
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !(defined(SHADER_API_METAL) && defined(UNITY_COMPILER_HLSLCC))
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !(defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) && !defined(SHADER_API_SWITCH)
 #define min16float half
 #define min16float2 half2
 #define min16float3 half3
@@ -219,6 +219,39 @@
 #define min10float2 fixed2
 #define min10float3 fixed3
 #define min10float4 fixed4
+#endif
+
+#if (defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC))
+#define uint int
+#define uint1 int1
+#define uint2 int2
+#define uint3 int3
+#define uint4 int4
+
+#define min16uint int
+#define min16uint1 int1
+#define min16uint2 int2
+#define min16uint3 int3
+#define min16uint4 int4
+
+#define uint1x1 int1x1
+#define uint1x2 int1x2
+#define uint1x3 int1x3
+#define uint1x4 int1x4
+#define uint2x1 int2x1
+#define uint2x2 int2x2
+#define uint2x3 int2x3
+#define uint2x4 int2x4
+#define uint3x1 int3x1
+#define uint3x2 int3x2
+#define uint3x3 int3x3
+#define uint3x4 int3x4
+#define uint4x1 int4x1
+#define uint4x2 int4x2
+#define uint4x3 int4x3
+#define uint4x4 int4x4
+
+#define asuint(x) asint(x)
 #endif
 
 #if defined(SHADER_API_PSP2)
@@ -352,7 +385,7 @@
     #define SHADOWS_NATIVE
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(UNITY_COMPILER_HLSLCC)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || (defined(UNITY_COMPILER_HLSLCC) && defined(SHADOWS_NATIVE))
     // DX11 & hlslcc platforms: built-in PCF
     #if defined(SHADER_API_D3D11_9X)
         // FL9.x has some bug where the runtime really wants resource & sampler to be bound to the same slot,
@@ -366,7 +399,12 @@
     #endif
     #define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
-    #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xyz,(coord).w)
+    #if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+        // GLSL does not have textureLod(samplerCubeShadow, ...) support. GLES2 does not have core support for samplerCubeShadow, so we ignore it.
+        #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmp (sampler##tex,(coord).xyz,(coord).w)
+    #else
+       #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xyz,(coord).w)
+    #endif
 #elif defined(UNITY_COMPILER_HLSL2GLSL) && defined(SHADOWS_NATIVE)
     // OpenGL-like hlsl2glsl platforms: most of them always have built-in PCF
     #define UNITY_DECLARE_SHADOWMAP(tex) sampler2DShadow tex
@@ -387,7 +425,7 @@
 #elif defined(SHADER_API_PSSL)
     // PS4: built-in PCF
     #define UNITY_DECLARE_SHADOWMAP(tex)        Texture2D tex; SamplerComparisonState sampler##tex
-    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) samplerCUBE tex; SamplerComparisonState sampler##tex
+    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube tex; SamplerComparisonState sampler##tex
     #define UNITY_SAMPLE_SHADOW(tex,coord)      tex.SampleCmpLOD0(sampler##tex,(coord).xy,(coord).z)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLOD0(sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
     #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLOD0(sampler##tex,(coord).xyz,(coord).w)
@@ -417,9 +455,14 @@
 //  - UNITY_SAMPLE_TEX*_SAMPLER samples a texture, using sampler from another texture.
 //      That another texture must also be actually used in the current shader, otherwise
 //      the correct sampler will not be set.
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(UNITY_COMPILER_HLSLCC) || defined(SHADER_API_PSSL) || (defined(SHADER_TARGET_SURFACE_ANALYSIS) && !defined(SHADER_TARGET_SURFACE_ANALYSIS_MOJOSHADER))
     // DX11 style HLSL syntax; separate textures and samplers
-    // NB for HLSLcc we have special unity-specific syntax to pass sampler precision information
+    //
+    // Note: for HLSLcc we have special unity-specific syntax to pass sampler precision information.
+    //
+    // Note: for surface shader analysis, go into DX11 syntax path when non-mojoshader part of analysis is done,
+    // this allows surface shaders to use _NOSAMPLER and similar macros, without using up a sampler register.
+    // Don't do that for mojoshader part, as that one can only parse DX9 style HLSL.
 
     // 2D textures
     #define UNITY_DECLARE_TEX2D(tex) Texture2D tex; SamplerState sampler##tex
@@ -679,7 +722,7 @@
 #define UNITY_INITIALIZE_OUTPUT(type,name)
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL)
 #define UNITY_CAN_COMPILE_TESSELLATION 1
 #   define UNITY_domain                 domain
 #   define UNITY_partitioning           partitioning
@@ -734,31 +777,38 @@
 #if defined(SHADER_API_VULKAN) || (defined(SHADER_API_METAL) && defined(UNITY_FRAMEBUFFER_FETCH_AVAILABLE))
 // Renderpass inputs: Vulkan/Metal subpass input
 #define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) cbuffer hlslcc_SubpassInput_f_##idx { float4 hlslcc_fbinput_##idx; }
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) cbuffer hlslcc_SubpassInput_F_##idx { float4 hlslcc_fbinput_##idx##_0; float4 hlslcc_fbinput_##idx##_1; float4 hlslcc_fbinput_##idx##_2; float4 hlslcc_fbinput_##idx##_3; float4 hlslcc_fbinput_##idx##_4; float4 hlslcc_fbinput_##idx##_5; float4 hlslcc_fbinput_##idx##_6; float4 hlslcc_fbinput_##idx##_7;}
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) cbuffer hlslcc_SubpassInput_F_##idx { float4 hlslcc_fbinput_##idx[8]; }
 // For halfs
 #define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) cbuffer hlslcc_SubpassInput_h_##idx { half4 hlslcc_fbinput_##idx; }
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx) cbuffer hlslcc_SubpassInput_H_##idx { half4 hlslcc_fbinput_##idx##_0; half4 hlslcc_fbinput_##idx##_1; half4 hlslcc_fbinput_##idx##_2; half4 hlslcc_fbinput_##idx##_3; half4 hlslcc_fbinput_##idx##_4; half4 hlslcc_fbinput_##idx##_5; half4 hlslcc_fbinput_##idx##_6; half4 hlslcc_fbinput_##idx##_7;}
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx) cbuffer hlslcc_SubpassInput_H_##idx { half4 hlslcc_fbinput_##idx[8]; }
 // For ints
 #define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) cbuffer hlslcc_SubpassInput_i_##idx { int4 hlslcc_fbinput_##idx; }
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx) cbuffer hlslcc_SubpassInput_I_##idx { int4 hlslcc_fbinput_##idx##_0; int4 hlslcc_fbinput_##idx##_1; int4 hlslcc_fbinput_##idx##_2; int4 hlslcc_fbinput_##idx##_3; int4 hlslcc_fbinput_##idx##_4; int4 hlslcc_fbinput_##idx##_5; int4 hlslcc_fbinput_##idx##_6; int4 hlslcc_fbinput_##idx##_7;}
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx) cbuffer hlslcc_SubpassInput_I_##idx { int4 hlslcc_fbinput_##idx[8]; }
 // For uints
 #define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) cbuffer hlslcc_SubpassInput_u_##idx { uint4 hlslcc_fbinput_##idx; }
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx) cbuffer hlslcc_SubpassInput_U_##idx { uint4 hlslcc_fbinput_##idx##_0; uint4 hlslcc_fbinput_##idx##_1; uint4 hlslcc_fbinput_##idx##_2; uint4 hlslcc_fbinput_##idx##_3; uint4 hlslcc_fbinput_##idx##_4; uint4 hlslcc_fbinput_##idx##_5; uint4 hlslcc_fbinput_##idx##_6; uint4 hlslcc_fbinput_##idx##_7;}
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx) cbuffer hlslcc_SubpassInput_U_##idx { uint4 hlslcc_fbinput_##idx[8]; }
 
 #define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fname) hlslcc_fbinput_##idx
-#define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname) hlslcc_fbinput_##idx##_##sampleIdx
+#define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fname) hlslcc_fbinput_##idx[sampleIdx]
 
 
 #else
 // Renderpass inputs: General fallback path
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(_UnityFBInput##idx)
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(_UnityFBInput##idx)
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_INT(_UnityFBInput##idx)
-#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(_UnityFBInput##idx)
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_FLOAT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_HALF(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_INT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT(idx) UNITY_DECLARE_TEX2D_NOSAMPLER_UINT(_UnityFBInput##idx); float4 _UnityFBInput##idx##_TexelSize
 
-#define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fvertexname) _UnityFBInput##idx.Load(int3(v2fvertexname.xy, 0))
+#define UNITY_READ_FRAMEBUFFER_INPUT(idx, v2fvertexname) _UnityFBInput##idx.Load(uint3(v2fvertexname.xy, 0))
 
-// TODO MS
+// MSAA input framebuffers via tex2dms
+
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_FLOAT_MS(idx) Texture2DMS<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_HALF_MS(idx) Texture2DMS<float4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_INT_MS(idx) Texture2DMS<int4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
+#define UNITY_DECLARE_FRAMEBUFFER_INPUT_UINT_MS(idx) Texture2DMS<uint4> _UnityFBInput##idx; float4 _UnityFBInput##idx##_TexelSize
+
+#define UNITY_READ_FRAMEBUFFER_INPUT_MS(idx, sampleIdx, v2fvertexname) _UnityFBInput##idx.Load(uint2(v2fvertexname.xy), sampleIdx)
 
 #endif
 

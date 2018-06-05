@@ -27,6 +27,7 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
 
     fixed4 _Channels;
     half4 _Levels;
+    bool _UndoOutputSRGB;
 
     fixed4 ProcessColor (half4 tex)
     {
@@ -44,6 +45,13 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
             half c = dot(col,half4(1,1,1,1));
             col = c;
         }
+
+        // When writing to the render target, it will compress our output into
+        // sRGB space. If we just want to show the linear value as-is, we need
+        // to cancel the hardware's sRGB conversion, so we convert "from" sRGB
+        // which the HW will revert by converting back "to" sRGB.
+        if (_UndoOutputSRGB)
+            col.rgb = GammaToLinearSpace(saturate(col.rgb));
 
         return col;
     }

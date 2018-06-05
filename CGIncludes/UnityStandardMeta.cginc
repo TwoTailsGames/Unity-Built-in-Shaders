@@ -6,10 +6,6 @@
 // Functionality for Standard shader "meta" pass
 // (extracts albedo/emission for lightmapper etc.)
 
-// define meta pass before including other files; they have conditions
-// on that in some places
-#define UNITY_PASS_META 1
-
 #include "UnityCG.cginc"
 #include "UnityStandardInput.cginc"
 #include "UnityMetaPass.cginc"

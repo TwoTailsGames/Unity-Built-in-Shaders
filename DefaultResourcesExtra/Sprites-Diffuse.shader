@@ -43,7 +43,7 @@ Shader "Sprites/Diffuse"
 
         void vert (inout appdata_full v, out Input o)
         {
-            v.vertex.xy *= _Flip.xy;
+            v.vertex = UnityFlipSprite(v.vertex, _Flip);
 
             #if defined(PIXELSNAP_ON)
             v.vertex = UnityPixelSnap (v.vertex);
