@@ -11,7 +11,7 @@ Shader "UI/Lit/Detail"
         _DetailTex ("Detail (RGB)", 2D) = "white" {}
         _DetailBump ("Detail Bump Map", 2D) = "bump" {}
         _Strength ("Detail Strength", Range(0.0, 1.0)) = 0.2
-        _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
+        [PowerSlider(5.0)] _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0

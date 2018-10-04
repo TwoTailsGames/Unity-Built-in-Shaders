@@ -57,7 +57,7 @@ Shader "Hidden/GIDebug/ShowLightMask" {
 
             fixed UnitySpotAttenuate(float3 LightCoord)
             {
-                return tex2D(_LightTextureB, dot(LightCoord, LightCoord).xx).UNITY_ATTEN_CHANNEL;
+                return tex2D(_LightTextureB, dot(LightCoord, LightCoord).xx).r;
             }
 
             float4 frag_surf (v2f_surf IN) : COLOR
@@ -78,7 +78,7 @@ Shader "Hidden/GIDebug/ShowLightMask" {
                 else if (_LightType == 1)
                 {
                     // point
-                    atten = tex2D(_LightTexture, dot(lightCoord.xyz, lightCoord.xyz).xx).UNITY_ATTEN_CHANNEL;
+                    atten = tex2D(_LightTexture, dot(lightCoord.xyz, lightCoord.xyz).xx).r;
                 }
                 else if (_LightType == 2)
                 {

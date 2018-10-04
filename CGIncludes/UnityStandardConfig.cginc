@@ -41,7 +41,7 @@
         #undef _PARALLAXMAP
     #endif
 #endif
-#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined (SHADER_API_PSP2)
+#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES) || defined (SHADER_API_PSP2)
     #undef UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS
 #endif
 
@@ -87,7 +87,7 @@
 
 // Should we pack worldPos along tangent (saving an interpolator)
 // We want to skip this on mobile platforms, because worldpos gets packed into mediump
-#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP) && !(defined(SHADER_API_MOBILE) && !defined(SHADER_API_D3D11_9X))
+#if UNITY_REQUIRE_FRAG_WORLDPOS && !defined(_PARALLAXMAP) && !defined(SHADER_API_MOBILE)
     #define UNITY_PACK_WORLDPOS_WITH_TANGENT 1
 #else
     #define UNITY_PACK_WORLDPOS_WITH_TANGENT 0

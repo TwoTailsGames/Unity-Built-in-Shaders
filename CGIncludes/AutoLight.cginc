@@ -108,7 +108,7 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
     return UnityMixRealtimeAndBakedShadows(realtimeShadowAttenuation, shadowMaskAttenuation, realtimeToBakedShadowFade);
 }
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D12) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D12) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL)
 #   define UNITY_SHADOW_W(_w) _w
 #else
 #   define UNITY_SHADOW_W(_w) (1.0/_w)
@@ -126,9 +126,8 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
 #   define UNITY_SHADOW_ATTENUATION(a, worldPos) SHADOW_ATTENUATION(a)
 #elif defined(SHADOWS_SCREEN) && !defined(LIGHTMAP_ON) && !defined(UNITY_NO_SCREENSPACE_SHADOWS) // no lightmap uv thus store screenPos instead
     // can happen if we have two directional lights. main light gets handled in GI code, but 2nd dir light can have shadow screen and mask.
-    // - Disabled on DX9 as we don't get valid .zw in vpos
     // - Disabled on ES2 because WebGL 1.0 seems to have junk in .w (even though it shouldn't)
-#   if defined(SHADOWS_SHADOWMASK) && !defined(SHADER_API_D3D9) && !defined(SHADER_API_GLES)
+#   if defined(SHADOWS_SHADOWMASK) && !defined(SHADER_API_GLES)
 #       define UNITY_SHADOW_COORDS(idx1) unityShadowCoord4 _ShadowCoord : TEXCOORD##idx1;
 #       define UNITY_TRANSFER_SHADOW(a, coord) {a._ShadowCoord.xy = coord * unity_LightmapST.xy + unity_LightmapST.zw; a._ShadowCoord.zw = ComputeScreenPos(a.pos).xy;}
 #       define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(a._ShadowCoord.xy, worldPos, float4(a._ShadowCoord.zw, 0.0, UNITY_SHADOW_W(a.pos.w)));
@@ -138,8 +137,8 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
 #       define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(0, worldPos, a._ShadowCoord)
 #   endif
 #else
+#   define UNITY_SHADOW_COORDS(idx1) unityShadowCoord4 _ShadowCoord : TEXCOORD##idx1;
 #   if defined(SHADOWS_SHADOWMASK)
-#       define UNITY_SHADOW_COORDS(idx1) unityShadowCoord4 _ShadowCoord : TEXCOORD##idx1;
 #       define UNITY_TRANSFER_SHADOW(a, coord) a._ShadowCoord.xy = coord.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 #       if (defined(SHADOWS_DEPTH) || defined(SHADOWS_SCREEN) || defined(SHADOWS_CUBE) || UNITY_LIGHT_PROBE_PROXY_VOLUME)
 #           define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(a._ShadowCoord.xy, worldPos, UNITY_READ_SHADOW_COORDS(a))
@@ -147,7 +146,6 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
 #           define UNITY_SHADOW_ATTENUATION(a, worldPos) UnityComputeForwardShadows(a._ShadowCoord.xy, 0, 0)
 #       endif
 #   else
-#       define UNITY_SHADOW_COORDS(idx1) SHADOW_COORDS(idx1)
 #       if !defined(UNITY_HALF_PRECISION_FRAGMENT_SHADER_REGISTERS)
 #           define UNITY_TRANSFER_SHADOW(a, coord)
 #       else
@@ -171,7 +169,7 @@ unityShadowCoord4x4 unity_WorldToLight;
 #   define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
         unityShadowCoord3 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xyz; \
         fixed shadow = UNITY_SHADOW_ATTENUATION(input, worldPos); \
-        fixed destName = tex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL * shadow;
+        fixed destName = tex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).r * shadow;
 #endif
 
 #ifdef SPOT
@@ -184,7 +182,7 @@ inline fixed UnitySpotCookie(unityShadowCoord4 LightCoord)
 }
 inline fixed UnitySpotAttenuate(unityShadowCoord3 LightCoord)
 {
-    return tex2D(_LightTextureB0, dot(LightCoord, LightCoord).xx).UNITY_ATTEN_CHANNEL;
+    return tex2D(_LightTextureB0, dot(LightCoord, LightCoord).xx).r;
 }
 #if !defined(UNITY_HALF_PRECISION_FRAGMENT_SHADER_REGISTERS)
 #define DECLARE_LIGHT_COORD(input, worldPos) unityShadowCoord4 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1))
@@ -213,7 +211,7 @@ sampler2D_float _LightTextureB0;
 #   define UNITY_LIGHT_ATTENUATION(destName, input, worldPos) \
         DECLARE_LIGHT_COORD(input, worldPos); \
         fixed shadow = UNITY_SHADOW_ATTENUATION(input, worldPos); \
-        fixed destName = tex2D(_LightTextureB0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL * texCUBE(_LightTexture0, lightCoord).w * shadow;
+        fixed destName = tex2D(_LightTextureB0, dot(lightCoord, lightCoord).rr).r * texCUBE(_LightTexture0, lightCoord).w * shadow;
 #endif
 
 #ifdef DIRECTIONAL_COOKIE
@@ -264,63 +262,38 @@ unityShadowCoord4x4 unity_WorldToLight;
 #endif
 
 #ifdef POINT
-#   if !defined (UNITY_HALF_PRECISION_FRAGMENT_SHADER_REGISTERS)
-#       define DECLARE_LIGHT_COORDS(idx)
-#       define COMPUTE_LIGHT_COORDS(a)
-#       define LIGHT_ATTENUATION(a)
-#   else
-#       define DECLARE_LIGHT_COORDS(idx) unityShadowCoord3 _LightCoord : TEXCOORD##idx;
-#       define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex)).xyz;
-#       define LIGHT_ATTENUATION(a)    (tex2D(_LightTexture0, dot(a._LightCoord,a._LightCoord).rr).UNITY_ATTEN_CHANNEL * SHADOW_ATTENUATION(a))
-#   endif
+#   define DECLARE_LIGHT_COORDS(idx) unityShadowCoord3 _LightCoord : TEXCOORD##idx;
+#   define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex)).xyz;
+#   define LIGHT_ATTENUATION(a)    (tex2D(_LightTexture0, dot(a._LightCoord,a._LightCoord).rr).r * SHADOW_ATTENUATION(a))
 #endif
 
 #ifdef SPOT
-#   if !defined (UNITY_HALF_PRECISION_FRAGMENT_SHADER_REGISTERS)
-#       define DECLARE_LIGHT_COORDS(idx)
-#       define COMPUTE_LIGHT_COORDS(a)
-#       define LIGHT_ATTENUATION(a)
-#   else
-#       define DECLARE_LIGHT_COORDS(idx) unityShadowCoord4 _LightCoord : TEXCOORD##idx;
-#       define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex));
-#       define LIGHT_ATTENUATION(a)    ( (a._LightCoord.z > 0) * UnitySpotCookie(a._LightCoord) * UnitySpotAttenuate(a._LightCoord.xyz) * SHADOW_ATTENUATION(a) )
-#   endif
+#   define DECLARE_LIGHT_COORDS(idx) unityShadowCoord4 _LightCoord : TEXCOORD##idx;
+#   define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex));
+#   define LIGHT_ATTENUATION(a)    ( (a._LightCoord.z > 0) * UnitySpotCookie(a._LightCoord) * UnitySpotAttenuate(a._LightCoord.xyz) * SHADOW_ATTENUATION(a) )
 #endif
 
 #ifdef DIRECTIONAL
-#define DECLARE_LIGHT_COORDS(idx)
-#define COMPUTE_LIGHT_COORDS(a)
-#define LIGHT_ATTENUATION(a) SHADOW_ATTENUATION(a)
+#   define DECLARE_LIGHT_COORDS(idx)
+#   define COMPUTE_LIGHT_COORDS(a)
+#   define LIGHT_ATTENUATION(a) SHADOW_ATTENUATION(a)
 #endif
 
 #ifdef POINT_COOKIE
-#   if !defined (UNITY_HALF_PRECISION_FRAGMENT_SHADER_REGISTERS)
-#       define DECLARE_LIGHT_COORDS(idx)
-#       define COMPUTE_LIGHT_COORDS(a)
-#       define LIGHT_ATTENUATION(a)
-#   else
-#       define DECLARE_LIGHT_COORDS(idx) unityShadowCoord3 _LightCoord : TEXCOORD##idx;
-#       define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex)).xyz;
-#       define LIGHT_ATTENUATION(a)    (tex2D(_LightTextureB0, dot(a._LightCoord,a._LightCoord).rr).UNITY_ATTEN_CHANNEL * texCUBE(_LightTexture0, a._LightCoord).w * SHADOW_ATTENUATION(a))
-#   endif
+#   define DECLARE_LIGHT_COORDS(idx) unityShadowCoord3 _LightCoord : TEXCOORD##idx;
+#   define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex)).xyz;
+#   define LIGHT_ATTENUATION(a)    (tex2D(_LightTextureB0, dot(a._LightCoord,a._LightCoord).rr).r * texCUBE(_LightTexture0, a._LightCoord).w * SHADOW_ATTENUATION(a))
 #endif
 
 #ifdef DIRECTIONAL_COOKIE
-#   if !defined (UNITY_HALF_PRECISION_FRAGMENT_SHADER_REGISTERS)
-#       define DECLARE_LIGHT_COORDS(idx)
-#       define COMPUTE_LIGHT_COORDS(a)
-#       define LIGHT_ATTENUATION(a)
-#   else
-#       define DECLARE_LIGHT_COORDS(idx) unityShadowCoord2 _LightCoord : TEXCOORD##idx;
-#       define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex)).xy;
-#       define LIGHT_ATTENUATION(a)    (tex2D(_LightTexture0, a._LightCoord).w * SHADOW_ATTENUATION(a))
-#   endif
+#   define DECLARE_LIGHT_COORDS(idx) unityShadowCoord2 _LightCoord : TEXCOORD##idx;
+#   define COMPUTE_LIGHT_COORDS(a) a._LightCoord = mul(unity_WorldToLight, mul(unity_ObjectToWorld, v.vertex)).xy;
+#   define LIGHT_ATTENUATION(a)    (tex2D(_LightTexture0, a._LightCoord).w * SHADOW_ATTENUATION(a))
 #endif
 
 #define UNITY_LIGHTING_COORDS(idx1, idx2) DECLARE_LIGHT_COORDS(idx1) UNITY_SHADOW_COORDS(idx2)
 #define LIGHTING_COORDS(idx1, idx2) DECLARE_LIGHT_COORDS(idx1) SHADOW_COORDS(idx2)
 #define UNITY_TRANSFER_LIGHTING(a, coord) COMPUTE_LIGHT_COORDS(a) UNITY_TRANSFER_SHADOW(a, coord)
 #define TRANSFER_VERTEX_TO_FRAGMENT(a) COMPUTE_LIGHT_COORDS(a) TRANSFER_SHADOW(a)
-
 
 #endif

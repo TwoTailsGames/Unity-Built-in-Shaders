@@ -1016,17 +1016,20 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
         #define UNITY_TRANSFER_FOG(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.fogCoord.x = unityFogFactor
         #define UNITY_TRANSFER_FOG_COMBINED_WITH_TSPACE(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.tSpace1.y = tangentSign; o.tSpace2.y = unityFogFactor
         #define UNITY_TRANSFER_FOG_COMBINED_WITH_WORLD_POS(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.worldPos.w = unityFogFactor
+        #define UNITY_TRANSFER_FOG_COMBINED_WITH_EYE_VEC(o,outpos) UNITY_CALC_FOG_FACTOR((outpos).z); o.eyeVec.w = unityFogFactor
     #else
         // SM3.0 and PC/console: calculate fog distance per-vertex, and fog factor per-pixel
         #define UNITY_TRANSFER_FOG(o,outpos) o.fogCoord.x = (outpos).z
         #define UNITY_TRANSFER_FOG_COMBINED_WITH_TSPACE(o,outpos) o.tSpace2.y = (outpos).z
         #define UNITY_TRANSFER_FOG_COMBINED_WITH_WORLD_POS(o,outpos) o.worldPos.w = (outpos).z
+        #define UNITY_TRANSFER_FOG_COMBINED_WITH_EYE_VEC(o,outpos) o.eyeVec.w = (outpos).z
     #endif
 #else
     #define UNITY_FOG_COORDS(idx)
     #define UNITY_TRANSFER_FOG(o,outpos)
     #define UNITY_TRANSFER_FOG_COMBINED_WITH_TSPACE(o,outpos)
     #define UNITY_TRANSFER_FOG_COMBINED_WITH_WORLD_POS(o,outpos)
+    #define UNITY_TRANSFER_FOG_COMBINED_WITH_EYE_VEC(o,outpos)
 #endif
 
 #define UNITY_FOG_LERP_COLOR(col,fogCol,fogFac) col.rgb = lerp((fogCol).rgb, (col).rgb, saturate(fogFac))
@@ -1043,11 +1046,13 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
     #define UNITY_EXTRACT_FOG(name) float _unity_fogCoord = name.fogCoord
     #define UNITY_EXTRACT_FOG_FROM_TSPACE(name) float _unity_fogCoord = name.tSpace2.y
     #define UNITY_EXTRACT_FOG_FROM_WORLD_POS(name) float _unity_fogCoord = name.worldPos.w
+    #define UNITY_EXTRACT_FOG_FROM_EYE_VEC(name) float _unity_fogCoord = name.eyeVec.w
 #else
     #define UNITY_APPLY_FOG_COLOR(coord,col,fogCol)
     #define UNITY_EXTRACT_FOG(name)
     #define UNITY_EXTRACT_FOG_FROM_TSPACE(name)
     #define UNITY_EXTRACT_FOG_FROM_WORLD_POS(name)
+    #define UNITY_EXTRACT_FOG_FROM_EYE_VEC(name)
 #endif
 
 #ifdef UNITY_PASS_FORWARDADD

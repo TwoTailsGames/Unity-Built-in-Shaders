@@ -4,8 +4,9 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
     Properties{
         _MainTex("Base (RGB) Alpha (A)", 2D) = "white" {}
         _NormalTex("Base (RGB) Alpha (A)", 2D) = "white" {}
+        _TranslucencyViewDependency("View dependency", Range(0,1)) = 0.7
+        _TranslucencyColor("Translucency Color", Color) = (0.73,0.85,0.41,1)
     }
-
         SubShader{
             Tags {
                 "IgnoreProjector" = "True" "RenderType" = "TreeBillboard" }
@@ -21,7 +22,9 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
                 #pragma multi_compile_fog
                 #include "UnityCG.cginc"
                 #include "UnityBuiltin3xTreeLibrary.cginc"
-
+#if SHADER_API_D3D11 || SHADER_API_GLCORE
+#define ALBEDO_NORMAL_LIGHTING 1
+#endif
                 struct v2f {
                     float4 pos : SV_POSITION;
                     fixed4 color : COLOR0;
@@ -82,10 +85,15 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
                     return o;
                 }
 
-                half3 CalcTreeLighting(half3 viewDir, half3 lightColor, half3 lightDir, half3 normal)
+                half3 CalcTreeLighting(half3 viewDir, half3 lightColor, half3 lightDir, half3 albedo, half3 normal, half backContribScale)
                 {
-                    half nl = saturate(dot(lightDir, normal));
-                    return nl * lightColor;
+                    half backContrib = saturate(dot(viewDir, -lightDir));
+                    half ndotl = dot(lightDir, normal);
+                    backContrib = lerp(saturate(-ndotl), backContrib, _TranslucencyViewDependency) * backContribScale;
+                    half3 translucencyColor = backContrib * _TranslucencyColor;
+                    const half diffuseWrap = 0.8;
+                    ndotl = saturate(ndotl * diffuseWrap + (1 - diffuseWrap));
+                    return albedo * (translucencyColor + ndotl) * lightColor;
                 }
 
                 sampler2D _MainTex;
@@ -94,18 +102,19 @@ Shader "Hidden/TerrainEngine/CameraFacingBillboardTree" {
                 fixed4 frag(v2f input) : SV_Target
                 {
                     fixed4 col = tex2D(_MainTex, input.uv.xy);
-#if defined(ALBEDO_NORMAL_LIGHTING)
-                    fixed4 normal = tex2D(_NormalTex, input.uv.xy);
-                    fixed specular = normal.a * 128.0;
-                    normal = (normal - 0.5) * 2;
-                    half3 albedo = col.rgb;
-                    half3 light = UNITY_LIGHTMODEL_AMBIENT;
-                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[0].rgb, _TerrainTreeLightDirections[0], normal);
-                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[1].rgb, _TerrainTreeLightDirections[1], normal);
-                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[2].rgb, _TerrainTreeLightDirections[2], normal);
-                    col.rgb = albedo * light;
-#endif
                     col.rgb *= input.color.rgb;
+#if defined(ALBEDO_NORMAL_LIGHTING)
+                    half3 normal = tex2D(_NormalTex, input.uv.xy).xyz;
+                    normal = normalize(normal);
+                    half3 albedo = col.rgb;
+                    half3 light = UNITY_LIGHTMODEL_AMBIENT * albedo;
+                    const half backContribScale = 0.2;
+
+                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[0].rgb, _TerrainTreeLightDirections[0], albedo, normal, backContribScale);
+                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[1].rgb, _TerrainTreeLightDirections[1], albedo, normal, backContribScale);
+                    light += CalcTreeLighting(input.viewDir, _TerrainTreeLightColors[2].rgb, _TerrainTreeLightDirections[2], albedo, normal, backContribScale);
+                    col.rgb = light;
+#endif
                     float coverage = ComputeAlphaCoverage(input.screenPos, input.uv.z);
                     col.a *= coverage;
                     clip(col.a - _TreeBillboardCameraFront.w);

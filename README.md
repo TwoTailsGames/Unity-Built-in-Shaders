@@ -1,6 +1,6 @@
 # Unity Built in Shaders
 
-Current repository version: 2018.1.0f3
+Current repository version: 2018.2.10f1
 
 An unofficial repo for Unity Built-in Shaders.
 

@@ -40,11 +40,7 @@ float3  UnityGetReceiverPlaneDepthBias(float3 shadowCoord, float biasbiasMultipl
 
 inline fixed UnitySampleShadowmap (float4 shadowCoord)
 {
-    // DX11 feature level 9.x shader compiler (d3dcompiler_47 at least)
-    // has a bug where trying to do more than one shadowmap sample fails compilation
-    // with "inconsistent sampler usage". Until that is fixed, just never compile
-    // multi-tap shadow variant on d3d11_9x.
-    #if defined (SHADOWS_SOFT) && !defined (SHADER_API_D3D11_9X)
+    #if defined (SHADOWS_SOFT)
 
         half shadow = 1;
 
@@ -104,12 +100,7 @@ inline fixed UnitySampleShadowmap (float4 shadowCoord)
     UNITY_DECLARE_TEXCUBE(_ShadowMapTexture);
     inline float SampleCubeDistance (float3 vec)
     {
-        // DX9 with SM2.0, and DX11 FL 9.x do not have texture LOD sampling.
-        #if ((SHADER_TARGET < 25) && defined(SHADER_API_D3D9)) || defined(SHADER_API_D3D11_9X)
-            return UnityDecodeCubeShadowDepth(texCUBE(_ShadowMapTexture, vec));
-        #else
-            return UnityDecodeCubeShadowDepth(UNITY_SAMPLE_TEXCUBE_LOD(_ShadowMapTexture, vec, 0));
-        #endif
+        return UnityDecodeCubeShadowDepth(UNITY_SAMPLE_TEXCUBE_LOD(_ShadowMapTexture, vec, 0));
     }
 
 #endif

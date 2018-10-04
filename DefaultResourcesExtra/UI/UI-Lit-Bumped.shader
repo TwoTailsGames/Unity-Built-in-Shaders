@@ -8,7 +8,7 @@ Shader "UI/Lit/Bumped"
         _Specular ("Specular Color", Color) = (0,0,0,0)
         _MainTex ("Diffuse (RGB), Alpha (A)", 2D) = "white" {}
         [NoScaleOffset] _MainBump ("Diffuse Bump Map", 2D) = "bump" {}
-        _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
+        [PowerSlider(5.0)] _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0

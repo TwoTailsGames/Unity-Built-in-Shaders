@@ -38,7 +38,6 @@ v2f vert (appdata_full v) {
     v2f o;
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-    ExpandBillboard (UNITY_MATRIX_IT_MV, v.vertex, v.normal, v.tangent);
     o.pos = UnityObjectToClipPos(v.vertex);
     o.uv = v.texcoord.xy;
     o.n = v.normal;
@@ -51,14 +50,12 @@ sampler2D _BumpSpecMap;
 sampler2D _TranslucencyMap;
 fixed _Cutoff;
 
-fixed4 frag (v2f i) : SV_Target {
+half4 frag (v2f i) : SV_Target {
     fixed4 col = tex2D (_MainTex, i.uv);
     clip (col.a - _Cutoff);
-    half specular = tex2D(_BumpSpecMap, i.uv).r;
-
-    fixed4 c;
-    c.rgb = 0.5*i.n + 0.5;
-    c.a = specular;
+    half4 c = 0;
+    half3 normal = normalize(i.n);
+    c.xyz = normal.xyz;
     return c;
 }
 ENDCG

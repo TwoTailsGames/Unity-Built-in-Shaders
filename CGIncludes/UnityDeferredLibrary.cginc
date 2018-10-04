@@ -169,7 +169,7 @@ void UnityDeferredCalculateLightParams (
         float atten = tex2Dbias (_LightTexture0, float4(uvCookie.xy / uvCookie.w, 0, -8)).w;
         atten *= uvCookie.w < 0;
         float att = dot(tolight, tolight) * _LightPos.w;
-        atten *= tex2D (_LightTextureB0, att.rr).UNITY_ATTEN_CHANNEL;
+        atten *= tex2D (_LightTextureB0, att.rr).r;
 
         atten *= UnityDeferredComputeShadow (wpos, fadeDist, uv);
 
@@ -190,7 +190,7 @@ void UnityDeferredCalculateLightParams (
         half3 lightDir = -normalize (tolight);
 
         float att = dot(tolight, tolight) * _LightPos.w;
-        float atten = tex2D (_LightTextureB0, att.rr).UNITY_ATTEN_CHANNEL;
+        float atten = tex2D (_LightTextureB0, att.rr).r;
 
         atten *= UnityDeferredComputeShadow (tolight, fadeDist, uv);
 

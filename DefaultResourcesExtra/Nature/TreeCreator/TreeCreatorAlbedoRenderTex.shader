@@ -52,7 +52,8 @@ fixed _Cutoff;
 fixed4 frag (v2f i) : SV_Target {
     fixed4 col = tex2D (_MainTex, i.uv);
     clip (col.a - _Cutoff);
-    col.a = 1;
+    fixed4 translucency = tex2D(_TranslucencyMap, i.uv);
+    col.a = translucency.b;
     return col;
 }
 ENDCG

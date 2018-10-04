@@ -9,7 +9,7 @@ Shader "UI/Lit/Refraction"
         _MainTex ("Diffuse (RGB), Alpha (A)", 2D) = "white" {}
         _MainBump ("Diffuse Bump Map", 2D) = "bump" {}
         _Mask ("Mask (Specularity, Shininess, Refraction)", 2D) = "black" {}
-        _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
+        [PowerSlider(5.0)] _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
         _Focus ("Focus", Range(-100.0, 100.0)) = -100.0
 
         _StencilComp ("Stencil Comparison", Float) = 8

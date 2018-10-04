@@ -4,7 +4,7 @@ Shader "Legacy Shaders/Reflective/Bumped VertexLit" {
 Properties {
     _Color ("Main Color", Color) = (1,1,1,1)
     _SpecColor ("Spec Color", Color) = (1,1,1,1)
-    _Shininess ("Shininess", Range (0.1, 1)) = 0.7
+    [PowerSlider(5.0)] _Shininess ("Shininess", Range (0.1, 1)) = 0.7
     _ReflectColor ("Reflection Color", Color) = (1,1,1,0.5)
     _MainTex ("Base (RGB) RefStrength (A)", 2D) = "white" {}
     _Cube ("Reflection Cubemap", Cube) = "" {}

@@ -3,7 +3,7 @@
 Shader "Hidden/TerrainEngine/Splatmap/Specular-AddPass" {
     Properties {
         _SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 1)
-        _Shininess ("Shininess", Range (0.03, 1)) = 0.078125
+        [PowerSlider(5.0)] _Shininess ("Shininess", Range (0.03, 1)) = 0.078125
 
         // set by terrain engine
         [HideInInspector] _Control ("Control (RGBA)", 2D) = "red" {}
