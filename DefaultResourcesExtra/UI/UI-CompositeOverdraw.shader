@@ -9,7 +9,7 @@ Shader "Hidden/UI/CompositeOverdraw"
 
     SubShader
     {
-        Tags { "ForceSupported" = "True" "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
+        Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
         // No culling or depth
         Cull Off ZWrite Off ZTest Always Blend SrcAlpha OneMinusSrcAlpha
         Fog { Mode off }

@@ -47,12 +47,12 @@ Shader "Nature/SpeedTree8"
             #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
             #pragma instancing_options assumeuniformscaling maxcount:50
 
-            #pragma shader_feature _WINDQUALITY_NONE _WINDQUALITY_FASTEST _WINDQUALITY_FAST _WINDQUALITY_BETTER _WINDQUALITY_BEST _WINDQUALITY_PALM
-            #pragma shader_feature EFFECT_BILLBOARD
-            #pragma shader_feature EFFECT_HUE_VARIATION
-            #pragma shader_feature EFFECT_SUBSURFACE
-            #pragma shader_feature EFFECT_BUMP
-            #pragma shader_feature EFFECT_EXTRA_TEX
+            #pragma shader_feature_local _WINDQUALITY_NONE _WINDQUALITY_FASTEST _WINDQUALITY_FAST _WINDQUALITY_BETTER _WINDQUALITY_BEST _WINDQUALITY_PALM
+            #pragma shader_feature_local EFFECT_BILLBOARD
+            #pragma shader_feature_local EFFECT_HUE_VARIATION
+            #pragma shader_feature_local EFFECT_SUBSURFACE
+            #pragma shader_feature_local EFFECT_BUMP
+            #pragma shader_feature_local EFFECT_EXTRA_TEX
 
             #define ENABLE_WIND
             #define EFFECT_BACKSIDE_NORMALS
@@ -77,8 +77,8 @@ Shader "Nature/SpeedTree8"
         CGPROGRAM
             #pragma surface SpeedTreeSurf Standard vertex:SpeedTreeVert addshadow noinstancing
             #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
-            #pragma shader_feature EFFECT_BILLBOARD
-            #pragma shader_feature EFFECT_EXTRA_TEX
+            #pragma shader_feature_local EFFECT_BILLBOARD
+            #pragma shader_feature_local EFFECT_EXTRA_TEX
 
             #include "SpeedTree8Common.cginc"
 

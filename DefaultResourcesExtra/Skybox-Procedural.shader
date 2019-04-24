@@ -26,7 +26,7 @@ SubShader {
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
 
-        #pragma multi_compile _SUNDISK_NONE _SUNDISK_SIMPLE _SUNDISK_HIGH_QUALITY
+        #pragma multi_compile_local _SUNDISK_NONE _SUNDISK_SIMPLE _SUNDISK_HIGH_QUALITY
 
         uniform half _Exposure;     // HDR exposure
         uniform half3 _GroundColor;

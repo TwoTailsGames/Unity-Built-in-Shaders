@@ -77,10 +77,10 @@ void SplatmapVert(inout appdata_full v, out Input data)
     v.tangent.xyz = cross(v.normal, float3(0,0,1));
     v.tangent.w = -1;
 
-    data.tc.xy = v.texcoord;
+    data.tc.xy = v.texcoord.xy;
 #ifdef TERRAIN_BASE_PASS
     #ifdef UNITY_PASS_META
-        data.tc.xy = v.texcoord * _MainTex_ST.xy + _MainTex_ST.zw;
+        data.tc.xy = TRANSFORM_TEX(v.texcoord.xy, _MainTex);
     #endif
 #else
     float4 pos = UnityObjectToClipPos(v.vertex);

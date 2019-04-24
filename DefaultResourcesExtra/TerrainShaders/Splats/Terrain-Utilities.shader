@@ -41,6 +41,8 @@ Shader "Hidden/Nature/Terrain/Utilities"
             Name "Selection"
             Tags { "LightMode" = "SceneSelectionPass" }
 
+            Cull Off
+
             CGPROGRAM
                 #pragma vertex vert
                 #pragma fragment frag

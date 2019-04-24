@@ -22,7 +22,7 @@ SubShader {
         #pragma vertex vert
         #pragma fragment frag
         #pragma target 2.0
-        #pragma multi_compile __ _MAPPING_6_FRAMES_LAYOUT
+        #pragma multi_compile_local __ _MAPPING_6_FRAMES_LAYOUT
 
         #include "UnityCG.cginc"
 

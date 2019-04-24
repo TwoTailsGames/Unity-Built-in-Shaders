@@ -397,6 +397,8 @@
     // this allows surface shaders to use _NOSAMPLER and similar macros, without using up a sampler register.
     // Don't do that for mojoshader part, as that one can only parse DX9 style HLSL.
 
+    #define UNITY_SEPARATE_TEXTURE_SAMPLER
+
     // 2D textures
     #define UNITY_DECLARE_TEX2D(tex) Texture2D tex; SamplerState sampler##tex
     #define UNITY_DECLARE_TEX2D_NOSAMPLER(tex) Texture2D tex

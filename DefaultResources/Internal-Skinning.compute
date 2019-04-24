@@ -2,6 +2,10 @@
 
 // Generic compute skinning ... with pos, norm, and tangent skinning
 
+#pragma kernel main SKIN_BONESFORVERT=0
+#pragma kernel main SKIN_BONESFORVERT=0 SKIN_NORM
+#pragma kernel main SKIN_BONESFORVERT=0 SKIN_TANG
+#pragma kernel main SKIN_BONESFORVERT=0 SKIN_NORM SKIN_TANG
 #pragma kernel main SKIN_BONESFORVERT=1
 #pragma kernel main SKIN_BONESFORVERT=1 SKIN_NORM
 #pragma kernel main SKIN_BONESFORVERT=1 SKIN_TANG
@@ -25,7 +29,7 @@ uint g_VertCount;
 #define STRUCTURED_BUFFER_SUPPORT 0
 #endif
 
-struct SVertInVBO
+struct MeshVertex
 {
     float3 pos;
 #if SKIN_NORM
@@ -36,116 +40,83 @@ struct SVertInVBO
 #endif
 };
 
-struct SVertInSkin
+struct SkinInfluence
 {
-#if SKIN_BONESFORVERT==1
+#if SKIN_BONESFORVERT <= 1
     int index0;
-#elif SKIN_BONESFORVERT==2
-    float weight0,weight1;
-    int index0,index1;
-#elif SKIN_BONESFORVERT==4
-    float weight0,weight1,weight2,weight3;
-    int index0,index1,index2,index3;
+#elif SKIN_BONESFORVERT == 2
+    float weight0, weight1;
+    int index0, index1;
+#elif SKIN_BONESFORVERT == 4
+    float weight0, weight1, weight2, weight3;
+    int index0, index1, index2, index3;
 #endif
 };
 
+#if SKIN_NORM && SKIN_TANG
+#define VERTEX_STRIDE 10
+#elif SKIN_NORM
+#define VERTEX_STRIDE 6
+#else
+#define VERTEX_STRIDE 3
+#endif
 
-struct SVertOut
-{
-    float3 pos;
-#if SKIN_NORM
-    float3 norm;
-#endif
-#if SKIN_TANG
-    float4 tang;
-#endif
-};
 
 #if !STRUCTURED_BUFFER_SUPPORT
-
-SVertInVBO FetchVerts( SAMPLER_UNIFORM Buffer<float> g_SourceVBO, const uint t)
+MeshVertex FetchVert(SAMPLER_UNIFORM Buffer<float> vertices, const uint index, const uint stride)
 {
-    SVertInVBO vert;
+    MeshVertex vert;
 
-
-#if SKIN_NORM && SKIN_TANG
-    const int stride = 10;
-    const int tangOffset = 6;
-#elif SKIN_NORM
-    const int stride = 6;
-#elif SKIN_TANG
-    const int stride = 7;
-    const int tangOffset = 3;
-#else
-    const int stride = 3;
-    const int tangOffset = 0;
-#endif
-
-    vert.pos.x = g_SourceVBO[t * stride];
-    vert.pos.y = g_SourceVBO[t * stride + 1];
-    vert.pos.z = g_SourceVBO[t * stride + 2];
+    uint offset = index * stride;
+    vert.pos.x = vertices[offset++];
+    vert.pos.y = vertices[offset++];
+    vert.pos.z = vertices[offset++];
 
 #if SKIN_NORM
-    vert.norm.x = g_SourceVBO[t * stride + 3];
-    vert.norm.y = g_SourceVBO[t * stride + 4];
-    vert.norm.z = g_SourceVBO[t * stride + 5];
+    vert.norm.x = vertices[offset++];
+    vert.norm.y = vertices[offset++];
+    vert.norm.z = vertices[offset++];
 #endif
 
 #if SKIN_TANG
-    vert.tang.x = g_SourceVBO[t * stride + tangOffset];
-    vert.tang.y = g_SourceVBO[t * stride + tangOffset + 1];
-    vert.tang.z = g_SourceVBO[t * stride + tangOffset + 2];
-    vert.tang.w = g_SourceVBO[t * stride + tangOffset + 3];
+    vert.tang.x = vertices[offset++];
+    vert.tang.y = vertices[offset++];
+    vert.tang.z = vertices[offset++];
+    vert.tang.w = vertices[offset++];
 #endif
 
-return vert;
-
+    return vert;
 }
 
-void StoreVerts( SAMPLER_UNIFORM RWBuffer<float> g_MeshVertsOut, float3 pos, float3 normal, float4 tang, const uint t)
+void StoreVert(SAMPLER_UNIFORM RWBuffer<float> vertices, float3 pos, float3 normal, float4 tang, const uint index, const uint stride)
 {
-#if SKIN_NORM && SKIN_TANG
-    const int stride = 10;
-    const int tangOffset = 6;
-#elif SKIN_NORM
-    const int stride = 6;
-#elif SKIN_TANG
-    const int stride = 7;
-    const int tangOffset = 3;
-#else
-    const int stride = 3;
-    const int tangOffset = 0;
-#endif
-
-    g_MeshVertsOut[t * stride]     = pos.x;
-    g_MeshVertsOut[t * stride + 1] = pos.y;
-    g_MeshVertsOut[t * stride + 2] = pos.z;
+    uint offset = index * stride;
+    vertices[offset++] = pos.x;
+    vertices[offset++] = pos.y;
+    vertices[offset++] = pos.z;
 
 #if SKIN_NORM
-   g_MeshVertsOut[t * stride + 3]=  normal.x;
-   g_MeshVertsOut[t * stride + 4]=  normal.y;
-   g_MeshVertsOut[t * stride + 5]=  normal.z;
+    vertices[offset++] = normal.x;
+    vertices[offset++] = normal.y;
+    vertices[offset++] = normal.z;
 #endif
 
 #if SKIN_TANG
-    g_MeshVertsOut[t * stride + tangOffset]     = tang.x;
-    g_MeshVertsOut[t * stride + tangOffset + 1] = tang.y;
-    g_MeshVertsOut[t * stride + tangOffset + 2] = tang.z;
-    g_MeshVertsOut[t * stride + tangOffset + 3] = tang.w;
+    vertices[offset++] = tang.x;
+    vertices[offset++] = tang.y;
+    vertices[offset++] = tang.z;
+    vertices[offset++] = tang.w;
 #endif
 }
 
 #endif
 
-#define NR_THREADS  64
 
-[numthreads(NR_THREADS, 1, 1)]
+[numthreads(64, 1, 1)]
 #if !STRUCTURED_BUFFER_SUPPORT
-void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM Buffer<float> g_SourceVBO, SAMPLER_UNIFORM StructuredBuffer<SVertInSkin> g_SourceSkin, SAMPLER_UNIFORM RWBuffer<float> g_MeshVertsOut,
-            SAMPLER_UNIFORM StructuredBuffer<float4x4> g_mBones)
+void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM Buffer<float> inVertices, SAMPLER_UNIFORM StructuredBuffer<SkinInfluence> inSkin, SAMPLER_UNIFORM RWBuffer<float> outVertices, SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices)
 #else
-void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM StructuredBuffer<SVertInVBO> g_SourceVBO, SAMPLER_UNIFORM StructuredBuffer<SVertInSkin> g_SourceSkin, SAMPLER_UNIFORM RWStructuredBuffer<SVertOut> g_MeshVertsOut,
-            SAMPLER_UNIFORM StructuredBuffer<float4x4> g_mBones)
+void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM StructuredBuffer<MeshVertex> inVertices, SAMPLER_UNIFORM StructuredBuffer<SkinInfluence> inSkin, SAMPLER_UNIFORM RWStructuredBuffer<MeshVertex> outVertices, SAMPLER_UNIFORM StructuredBuffer<float4x4> inMatrices)
 #endif
 {
     const uint t = threadID.x;
@@ -156,92 +127,67 @@ void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM StructuredBuffer
     }
 
 #if !STRUCTURED_BUFFER_SUPPORT
-    const SVertInVBO vert = FetchVerts(g_SourceVBO, t);
+    const MeshVertex vert = FetchVert(inVertices, t, VERTEX_STRIDE);
 #else
-    const SVertInVBO vert = g_SourceVBO[t];
+    const MeshVertex vert = inVertices[t];
 #endif
-    SVertInSkin si = g_SourceSkin[t];           // get skinning info.
-    float3 vP = vert.pos.xyz;
-    float3 vPacc = float3(0,0,0);
+    SkinInfluence si = inSkin[t];
 
-    float3 vN = float3(0,0,0);
+    float3 vPos = vert.pos.xyz;
 #if SKIN_NORM
-    vN = vert.norm.xyz;
-    float3 vNacc = float3(0,0,0);
+    float3 vNorm = vert.norm.xyz;
 #endif
-
-    float3 vT = float3(0,0,0);
 #if SKIN_TANG
-    vT = vert.tang.xyz;
-    float3 vTacc = float3(0,0,0);
+    float3 vTang = vert.tang.xyz;
 #endif
 
+    float3 oPos = float3(0, 0, 0);
+    float3 oNorm = float3(0, 0, 0);
+    float4 oTang = float4(0, 0, 0, 0);
 
-#if SKIN_BONESFORVERT==1
-    vPacc += mul(g_mBones[si.index0], float4(vP,1) ).xyz;
-#elif SKIN_BONESFORVERT==2
-    vPacc += si.weight0*mul( g_mBones[si.index0], float4(vP,1) ).xyz;
-    vPacc += si.weight1*mul( g_mBones[si.index1], float4(vP,1) ).xyz;
-#elif SKIN_BONESFORVERT==4
-    vPacc += si.weight0*mul(  g_mBones[si.index0], float4(vP,1) ).xyz;
-    vPacc += si.weight1*mul(  g_mBones[si.index1], float4(vP,1) ).xyz;
-    vPacc += si.weight2*mul(  g_mBones[si.index2], float4(vP,1) ).xyz;
-    vPacc += si.weight3*mul(  g_mBones[si.index3], float4(vP,1) ).xyz;
-#endif
-
-#if SKIN_NORM
-#if SKIN_BONESFORVERT==1
-    vNacc += mul( g_mBones[si.index0],float4(vN,0) ).xyz;
-#elif SKIN_BONESFORVERT==2
-    vNacc += si.weight0*mul(  g_mBones[si.index0],float4(vN,0) ).xyz;
-    vNacc += si.weight1*mul(  g_mBones[si.index1],float4(vN,0) ).xyz;
-#elif SKIN_BONESFORVERT==4
-    vNacc += si.weight0*mul(  g_mBones[si.index0],float4(vN,0) ).xyz;
-    vNacc += si.weight1*mul(  g_mBones[si.index1],float4(vN,0) ).xyz;
-    vNacc += si.weight2*mul(  g_mBones[si.index2],float4(vN,0) ).xyz;
-    vNacc += si.weight3*mul(  g_mBones[si.index3],float4(vN,0) ).xyz;
-#endif
-#endif
-
-#if SKIN_TANG
-#if SKIN_BONESFORVERT==1
-    vTacc += mul( (float3x3)g_mBones[si.index0], vT ).xyz;
-#elif SKIN_BONESFORVERT==2
-    vTacc += si.weight0*mul( (float3x3)g_mBones[si.index0], vT ).xyz;
-    vTacc += si.weight1*mul( (float3x3)g_mBones[si.index1], vT ).xyz;
-#elif SKIN_BONESFORVERT==4
-    vTacc += si.weight0*mul((float3x3)g_mBones[si.index0], vT  ).xyz;
-    vTacc += si.weight1*mul((float3x3)g_mBones[si.index1], vT  ).xyz;
-    vTacc += si.weight2*mul((float3x3)g_mBones[si.index2], vT  ).xyz;
-    vTacc += si.weight3*mul((float3x3)g_mBones[si.index3], vT  ).xyz;
-#endif
+#if SKIN_BONESFORVERT == 0
+    uint startIndex = si.index0;
+    uint endIndex = inSkin[t + 1].index0;
+    float4x4 blendedMatrix = 0;
+    for (uint i = startIndex; i < endIndex; i++)
+    {
+        uint weightAndIndex = inSkin[i].index0;
+        float weight = float(weightAndIndex >> 16) * (1.0f / 65535.0f);
+        uint index = weightAndIndex & 0xFFFF;
+        blendedMatrix += inMatrices[index] * weight;
+    }
+#elif SKIN_BONESFORVERT == 1
+    const float4x4 blendedMatrix = inMatrices[si.index0];
+#elif SKIN_BONESFORVERT == 2
+    const float4x4 blendedMatrix = inMatrices[si.index0] * si.weight0 +
+                                   inMatrices[si.index1] * si.weight1;
+#elif SKIN_BONESFORVERT == 4
+    const float4x4 blendedMatrix = inMatrices[si.index0] * si.weight0 +
+                                   inMatrices[si.index1] * si.weight1 +
+                                   inMatrices[si.index2] * si.weight2 +
+                                   inMatrices[si.index3] * si.weight3;
 #endif
 
-    vP = vPacc;
-#if STRUCTURED_BUFFER_SUPPORT
-    g_MeshVertsOut[t].pos.xyz = vP;
-#endif
+    oPos = mul(blendedMatrix, float4(vPos, 1)).xyz;
 
 #if SKIN_NORM
-    vN = vNacc;
-#if STRUCTURED_BUFFER_SUPPORT
-    g_MeshVertsOut[t].norm.xyz = vN;
-#endif
+    oNorm = mul(blendedMatrix, float4(vNorm, 0)).xyz;
 #endif
 
 #if SKIN_TANG
-    vT = vTacc;
-#if STRUCTURED_BUFFER_SUPPORT
-    g_MeshVertsOut[t].tang = float4(vT.xyz,vert.tang.w);
-#endif
+    oTang.xyz = mul(blendedMatrix, float4(vTang, 0)).xyz;
+    oTang.w = vert.tang.w;
 #endif
 
-#if !STRUCTURED_BUFFER_SUPPORT
+#if STRUCTURED_BUFFER_SUPPORT
+    outVertices[t].pos = oPos;
+#if SKIN_NORM
+    outVertices[t].norm = oNorm;
+#endif
 #if SKIN_TANG
-    StoreVerts(g_MeshVertsOut, vP, vN, float4(vT.xyz,vert.tang.w), t);
+    outVertices[t].tang = oTang;
+#endif
 #else
-    StoreVerts(g_MeshVertsOut, vP, vN, float4(0.0f, 0.0f, 0.0f, 0.0f), t);
+    StoreVert(outVertices, oPos, oNorm, oTang, t, VERTEX_STRIDE);
 #endif
-#endif
-
 }

@@ -120,6 +120,8 @@
     #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO                          uint stereoTargetEyeIndex : SV_RenderTargetArrayIndex;
     #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output)       output.stereoTargetEyeIndex = unity_StereoEyeIndex
 #endif
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX                uint stereoTargetEyeIndex : BLENDINDICES0;
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)    output.stereoTargetEyeIndex = unity_StereoEyeIndex;
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output)  output.stereoTargetEyeIndex = input.stereoTargetEyeIndex;
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input) unity_StereoEyeIndex = input.stereoTargetEyeIndex;
 #elif defined(UNITY_STEREO_MULTIVIEW_ENABLED)
@@ -134,12 +136,19 @@
     #endif
 #else
     #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO
+    #define DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX
+    #define DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)
     #define DEFAULT_UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output)
     #define DEFAULT_UNITY_TRANSFER_VERTEX_OUTPUT_STEREO(input, output)
     #define DEFAULT_UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input)
 #endif
 
-
+#if !defined(UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX)
+#   define UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX                 DEFAULT_UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX
+#endif
+#if !defined(UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX)
+#   define UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)     DEFAULT_UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(output)
+#endif
 #if !defined(UNITY_VERTEX_OUTPUT_STEREO)
 #   define UNITY_VERTEX_OUTPUT_STEREO                           DEFAULT_UNITY_VERTEX_OUTPUT_STEREO
 #endif

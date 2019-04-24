@@ -520,7 +520,6 @@ inline half3 DecodeHDR (half4 data, half4 decodeInstructions)
 
 // Decodes HDR textures
 // handles dLDR, RGBM formats
-// Called by DecodeLightmap when UNITY_NO_RGBM is not defined.
 inline half3 DecodeLightmapRGBM (half4 data, half4 decodeInstructions)
 {
     // If Linear mode is not supported we can skip exponent part

@@ -62,9 +62,6 @@ Shader "Hidden/Internal-GUITextureClip"
     ENDCG
 
     SubShader {
-
-        Tags { "ForceSupported" = "True" }
-
         Lighting Off
         Blend SrcAlpha OneMinusSrcAlpha, One One
         Cull Off
@@ -78,9 +75,6 @@ Shader "Hidden/Internal-GUITextureClip"
     }
 
     SubShader {
-
-        Tags { "ForceSupported" = "True" }
-
         Lighting Off
         Blend SrcAlpha OneMinusSrcAlpha
         Cull Off
