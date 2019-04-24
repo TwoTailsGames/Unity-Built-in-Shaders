@@ -168,6 +168,7 @@ CBUFFER_START(UnityPerDraw)
     float4x4 unity_WorldToObject;
     float4 unity_LODFade; // x is the fade value ranging within [0,1]. y is x quantized into 16 levels
     float4 unity_WorldTransformParams; // w is usually 1.0, or -1.0 for odd-negative scale transforms
+    float4 unity_RenderingLayer;
 CBUFFER_END
 
 #if defined(USING_STEREO_MATRICES)

@@ -237,6 +237,11 @@
         #define UNITY_USE_LODFADE_ARRAY
     #endif
 
+    #if defined(UNITY_INSTANCED_RENDERING_LAYER)
+        #define UNITY_USE_RENDERINGLAYER_ARRAY
+    #endif
+
+
     #ifdef UNITY_INSTANCED_LIGHTMAPSTS
         #ifdef LIGHTMAP_ON
             #define UNITY_USE_LIGHTMAPST_ARRAY
@@ -267,6 +272,10 @@
             // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
             #define unity_LODFade UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_LODFadeArray).xyxx
         #endif
+        #if defined(UNITY_USE_RENDERINGLAYER_ARRAY) && defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
+            UNITY_DEFINE_INSTANCED_PROP(float, unity_RenderingLayerArray)
+            #define unity_RenderingLayer UNITY_ACCESS_INSTANCED_PROP(unity_Builtins0, unity_RenderingLayerArray).xxxx
+        #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins0)
 
     UNITY_INSTANCING_BUFFER_START(PerDraw1)
@@ -277,6 +286,10 @@
             UNITY_DEFINE_INSTANCED_PROP(float2, unity_LODFadeArray)
             // the quantized fade value (unity_LODFade.y) is automatically used for cross-fading instances
             #define unity_LODFade UNITY_ACCESS_INSTANCED_PROP(unity_Builtins1, unity_LODFadeArray).xyxx
+        #endif
+        #if defined(UNITY_USE_RENDERINGLAYER_ARRAY) && !defined(UNITY_INSTANCING_SUPPORT_FLEXIBLE_ARRAY_SIZE)
+            UNITY_DEFINE_INSTANCED_PROP(float, unity_RenderingLayerArray)
+            #define unity_RenderingLayer UNITY_ACCESS_INSTANCED_PROP(unity_Builtins1, unity_RenderingLayerArray).xxxx
         #endif
     UNITY_INSTANCING_BUFFER_END(unity_Builtins1)
 

@@ -2,22 +2,14 @@
 
 Shader "Nature/Terrain/Diffuse" {
     Properties {
-        [HideInInspector] _Control ("Control (RGBA)", 2D) = "red" {}
-        [HideInInspector] _Splat3 ("Layer 3 (A)", 2D) = "white" {}
-        [HideInInspector] _Splat2 ("Layer 2 (B)", 2D) = "white" {}
-        [HideInInspector] _Splat1 ("Layer 1 (G)", 2D) = "white" {}
-        [HideInInspector] _Splat0 ("Layer 0 (R)", 2D) = "white" {}
-        [HideInInspector] _Normal3 ("Normal 3 (A)", 2D) = "bump" {}
-        [HideInInspector] _Normal2 ("Normal 2 (B)", 2D) = "bump" {}
-        [HideInInspector] _Normal1 ("Normal 1 (G)", 2D) = "bump" {}
-        [HideInInspector] _Normal0 ("Normal 0 (R)", 2D) = "bump" {}
         // used in fallback on old cards & base map
         [HideInInspector] _MainTex ("BaseMap (RGB)", 2D) = "white" {}
         [HideInInspector] _Color ("Main Color", Color) = (1,1,1,1)
     }
 
     CGINCLUDE
-        #pragma surface surf Lambert vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer noinstancing
+        #pragma surface surf Lambert vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
+        #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma multi_compile_fog
         #include "TerrainSplatmapCommon.cginc"
 
@@ -37,13 +29,16 @@ Shader "Nature/Terrain/Diffuse" {
             "Queue" = "Geometry-99"
             "RenderType" = "Opaque"
         }
-        // TODO: Seems like "#pragma target 3.0 _TERRAIN_NORMAL_MAP" can't fallback correctly on less capable devices?
+        // TODO: Seems like "#pragma target 3.0 _NORMALMAP" can't fallback correctly on less capable devices?
         // Use two sub-shaders to simulate different features for different targets and still fallback correctly.
         SubShader { // for sm3.0+ targets
             CGPROGRAM
                 #pragma target 3.0
-                #pragma multi_compile __ _TERRAIN_NORMAL_MAP
+                #pragma multi_compile __ _NORMALMAP
             ENDCG
+
+            UsePass "Hidden/Nature/Terrain/Utilities/PICKING"
+            UsePass "Hidden/Nature/Terrain/Utilities/SELECTION"
         }
         SubShader { // for sm2.0 targets
             CGPROGRAM
@@ -51,12 +46,13 @@ Shader "Nature/Terrain/Diffuse" {
         }
     }
 
-    Dependency "AddPassShader" = "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass"
-    Dependency "BaseMapShader" = "Diffuse"
-    Dependency "Details0"      = "Hidden/TerrainEngine/Details/Vertexlit"
-    Dependency "Details1"      = "Hidden/TerrainEngine/Details/WavingDoublePass"
-    Dependency "Details2"      = "Hidden/TerrainEngine/Details/BillboardWavingDoublePass"
-    Dependency "Tree0"         = "Hidden/TerrainEngine/BillboardTree"
+    Dependency "AddPassShader"    = "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass"
+    Dependency "BaseMapShader"    = "Hidden/TerrainEngine/Splatmap/Diffuse-Base"
+    Dependency "BaseMapGenShader" = "Hidden/TerrainEngine/Splatmap/Diffuse-BaseGen"
+    Dependency "Details0"         = "Hidden/TerrainEngine/Details/Vertexlit"
+    Dependency "Details1"         = "Hidden/TerrainEngine/Details/WavingDoublePass"
+    Dependency "Details2"         = "Hidden/TerrainEngine/Details/BillboardWavingDoublePass"
+    Dependency "Tree0"            = "Hidden/TerrainEngine/BillboardTree"
 
     Fallback "Diffuse"
 }

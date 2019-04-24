@@ -1,6 +1,6 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-Shader "Particles/Anim Alpha Blended" {
+Shader "Legacy Shaders/Particles/Anim Alpha Blended" {
 Properties {
     _TintColor ("Tint Color", Color) = (0.5,0.5,0.5,0.5)
     _MainTex ("Particle Texture", 2D) = "white" {}
@@ -84,7 +84,7 @@ Category {
                 fixed4 colA = tex2D(_MainTex, i.texcoord);
                 fixed4 colB = tex2D(_MainTex, i.texcoord2);
                 fixed4 col = 2.0f * i.color * lerp(colA, colB, i.blend);
-                col.a = saturate(col.a); // alpha should not have double-brightness applied to it, but we can't fix that legacy behaior without breaking everyone's effects, so instead clamp the output to get sensible HDR behavior (case 967476)
+                col.a = saturate(col.a); // alpha should not have double-brightness applied to it, but we can't fix that legacy behavior without breaking everyone's effects, so instead clamp the output to get sensible HDR behavior (case 967476)
 
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;

@@ -2,25 +2,6 @@
 
 Shader "Nature/Terrain/Standard" {
     Properties {
-        // set by terrain engine
-        [HideInInspector] _Control ("Control (RGBA)", 2D) = "red" {}
-        [HideInInspector] _Splat3 ("Layer 3 (A)", 2D) = "white" {}
-        [HideInInspector] _Splat2 ("Layer 2 (B)", 2D) = "white" {}
-        [HideInInspector] _Splat1 ("Layer 1 (G)", 2D) = "white" {}
-        [HideInInspector] _Splat0 ("Layer 0 (R)", 2D) = "white" {}
-        [HideInInspector] _Normal3 ("Normal 3 (A)", 2D) = "bump" {}
-        [HideInInspector] _Normal2 ("Normal 2 (B)", 2D) = "bump" {}
-        [HideInInspector] _Normal1 ("Normal 1 (G)", 2D) = "bump" {}
-        [HideInInspector] _Normal0 ("Normal 0 (R)", 2D) = "bump" {}
-        [HideInInspector] [Gamma] _Metallic0 ("Metallic 0", Range(0.0, 1.0)) = 0.0
-        [HideInInspector] [Gamma] _Metallic1 ("Metallic 1", Range(0.0, 1.0)) = 0.0
-        [HideInInspector] [Gamma] _Metallic2 ("Metallic 2", Range(0.0, 1.0)) = 0.0
-        [HideInInspector] [Gamma] _Metallic3 ("Metallic 3", Range(0.0, 1.0)) = 0.0
-        [HideInInspector] _Smoothness0 ("Smoothness 0", Range(0.0, 1.0)) = 1.0
-        [HideInInspector] _Smoothness1 ("Smoothness 1", Range(0.0, 1.0)) = 1.0
-        [HideInInspector] _Smoothness2 ("Smoothness 2", Range(0.0, 1.0)) = 1.0
-        [HideInInspector] _Smoothness3 ("Smoothness 3", Range(0.0, 1.0)) = 1.0
-
         // used in fallback on old cards & base map
         [HideInInspector] _MainTex ("BaseMap (RGB)", 2D) = "white" {}
         [HideInInspector] _Color ("Main Color", Color) = (1,1,1,1)
@@ -33,16 +14,18 @@ Shader "Nature/Terrain/Standard" {
         }
 
         CGPROGRAM
-        #pragma surface surf Standard vertex:SplatmapVert finalcolor:SplatmapFinalColor finalgbuffer:SplatmapFinalGBuffer fullforwardshadows noinstancing
-        #pragma multi_compile_fog
+        #pragma surface surf Standard vertex:SplatmapVert finalcolor:SplatmapFinalColor finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
+        #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
+        #pragma multi_compile_fog // needed because finalcolor oppresses fog code generation.
         #pragma target 3.0
         // needs more than 8 texcoords
-        #pragma exclude_renderers gles psp2
+        #pragma exclude_renderers gles
         #include "UnityPBSLighting.cginc"
 
-        #pragma multi_compile __ _TERRAIN_NORMAL_MAP
+        #pragma multi_compile __ _NORMALMAP
 
         #define TERRAIN_STANDARD_SHADER
+        #define TERRAIN_INSTANCED_PERPIXEL_NORMAL
         #define TERRAIN_SURFACE_OUTPUT SurfaceOutputStandard
         #include "TerrainSplatmapCommon.cginc"
 
@@ -68,10 +51,14 @@ Shader "Nature/Terrain/Standard" {
             o.Metallic = dot(splat_control, half4(_Metallic0, _Metallic1, _Metallic2, _Metallic3));
         }
         ENDCG
+
+        UsePass "Hidden/Nature/Terrain/Utilities/PICKING"
+        UsePass "Hidden/Nature/Terrain/Utilities/SELECTION"
     }
 
-    Dependency "AddPassShader" = "Hidden/TerrainEngine/Splatmap/Standard-AddPass"
-    Dependency "BaseMapShader" = "Hidden/TerrainEngine/Splatmap/Standard-Base"
+    Dependency "AddPassShader"    = "Hidden/TerrainEngine/Splatmap/Standard-AddPass"
+    Dependency "BaseMapShader"    = "Hidden/TerrainEngine/Splatmap/Standard-Base"
+    Dependency "BaseMapGenShader" = "Hidden/TerrainEngine/Splatmap/Standard-BaseGen"
 
     Fallback "Nature/Terrain/Diffuse"
 }

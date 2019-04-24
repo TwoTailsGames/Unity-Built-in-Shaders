@@ -45,7 +45,7 @@ ENDCG
         ColorMask RGB
 
 CGPROGRAM
-#pragma surface surf Lambert vertex:WavingGrassBillboardVert addshadow exclude_path:deferred
+#pragma surface surf Lambert vertex:WavingGrassBillboardVert addshadow fullforwardshadows exclude_path:deferred
 
 sampler2D _MainTex;
 fixed _Cutoff;

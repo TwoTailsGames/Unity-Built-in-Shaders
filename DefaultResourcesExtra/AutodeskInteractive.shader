@@ -1,6 +1,6 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
-Shader "Standard (Roughness setup)"
+Shader "Autodesk Interactive"
 {
     Properties
     {
@@ -327,5 +327,5 @@ Shader "Standard (Roughness setup)"
 
 
     FallBack "VertexLit"
-    CustomEditor "StandardRoughnessShaderGUI"
+    CustomEditor "AutodeskInteractiveShaderGUI"
 }

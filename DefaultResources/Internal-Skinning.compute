@@ -19,7 +19,7 @@
 
 uint g_VertCount;
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PS4) || defined(SHADER_API_GLCORE) || defined(SHADER_API_VULKAN) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PS4) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_METAL) || defined(SHADER_API_PSSL) || defined(SHADER_API_SWITCH)
 #define STRUCTURED_BUFFER_SUPPORT 1
 #else
 #define STRUCTURED_BUFFER_SUPPORT 0
@@ -191,7 +191,7 @@ void main(uint3 threadID : SV_DispatchThreadID, SAMPLER_UNIFORM StructuredBuffer
 
 #if SKIN_NORM
 #if SKIN_BONESFORVERT==1
-    vNacc += mul( float4(vN,0), g_mBones[si.index0] ).xyz;
+    vNacc += mul( g_mBones[si.index0],float4(vN,0) ).xyz;
 #elif SKIN_BONESFORVERT==2
     vNacc += si.weight0*mul(  g_mBones[si.index0],float4(vN,0) ).xyz;
     vNacc += si.weight1*mul(  g_mBones[si.index1],float4(vN,0) ).xyz;

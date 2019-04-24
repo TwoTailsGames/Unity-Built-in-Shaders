@@ -166,13 +166,7 @@ SubShader {
         float scale(float inCos)
         {
             float x = 1.0 - inCos;
-        #if defined(SHADER_API_N3DS)
-            // The polynomial expansion here generates too many swizzle instructions for the 3DS vertex assembler
-            // Approximate by removing x^1 and x^2
-            return 0.25 * exp(-0.00287 + x*x*x*(-6.80 + x*5.25));
-        #else
             return 0.25 * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
-        #endif
         }
 
         v2f vert (appdata_t v)

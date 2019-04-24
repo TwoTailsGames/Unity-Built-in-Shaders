@@ -18,23 +18,27 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
         LOD 200
 
         CGPROGRAM
-        #pragma surface surf BlinnPhong
+        #pragma surface surf BlinnPhong vertex:SplatmapVert addshadow fullforwardshadows
+        #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
+
+        #define TERRAIN_BASE_PASS
+        #define TERRAIN_SURFACE_OUTPUT SurfaceOutput
+        #include "TerrainSplatmapCommon.cginc"
 
         sampler2D _MainTex;
         half _Shininess;
 
-        struct Input {
-            float2 uv_MainTex;
-        };
-
         void surf (Input IN, inout SurfaceOutput o) {
-            fixed4 tex = tex2D(_MainTex, IN.uv_MainTex);
+            fixed4 tex = tex2D(_MainTex, IN.tc.xy);
             o.Albedo = tex.rgb;
             o.Gloss = tex.a;
             o.Alpha = 1.0f;
             o.Specular = _Shininess;
         }
         ENDCG
+
+        UsePass "Hidden/Nature/Terrain/Utilities/PICKING"
+        UsePass "Hidden/Nature/Terrain/Utilities/SELECTION"
     }
 
     FallBack "Legacy Shaders/Specular"

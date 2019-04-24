@@ -41,7 +41,7 @@
         #undef _PARALLAXMAP
     #endif
 #endif
-#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES) || defined (SHADER_API_PSP2)
+#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES)
     #undef UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS
 #endif
 

@@ -292,7 +292,7 @@ float3 Shade4PointLights (
 // to calculate but lights are treated as spot lights otherwise they are treated as point lights.
 float3 ShadeVertexLightsFull (float4 vertex, float3 normal, int lightCount, bool spotLight)
 {
-    float3 viewpos = UnityObjectToViewPos (vertex);
+    float3 viewpos = UnityObjectToViewPos (vertex.xyz);
     float3 viewN = normalize (mul ((float3x3)UNITY_MATRIX_IT_MV, normal));
 
     float3 lightColor = UNITY_LIGHTMODEL_AMBIENT.xyz;
@@ -688,6 +688,18 @@ inline fixed3 UnpackNormal(fixed4 packednormal)
 #endif
 }
 
+fixed3 UnpackNormalWithScale(fixed4 packednormal, float scale)
+{
+#ifndef UNITY_NO_DXT5nm
+    // Unpack normal as DXT5nm (1, y, 1, x) or BC5 (x, y, 0, 1)
+    // Note neutral texture like "bump" is (0, 0, 1, 1) to work with both plain RGB normal and DXT5nm/BC5
+    packednormal.x *= packednormal.w;
+#endif
+    fixed3 normal;
+    normal.xy = (packednormal.xy * 2 - 1) * scale;
+    normal.z = sqrt(1 - saturate(dot(normal.xy, normal.xy)));
+    return normal;
+}
 
 // Z buffer to linear 0..1 depth
 inline float Linear01Depth( float z )
@@ -1174,5 +1186,27 @@ UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 // Legacy; used to do something on platforms that had to emulate depth textures manually. Now all platforms have native depth textures.
 #define UNITY_OUTPUT_DEPTH(i) return 0
 
+
+
+#define API_HAS_GUARANTEED_R16_SUPPORT !(SHADER_API_VULKAN || SHADER_API_GLES || SHADER_API_GLES3)
+
+float4 PackHeightmap(float height)
+{
+    #if (API_HAS_GUARANTEED_R16_SUPPORT)
+        return height;
+    #else
+        uint a = (uint)(65535.0f * height);
+        return float4((a >> 0) & 0xFF, (a >> 8) & 0xFF, 0, 0) / 255.0f;
+    #endif
+}
+
+float UnpackHeightmap(float4 height)
+{
+    #if (API_HAS_GUARANTEED_R16_SUPPORT)
+        return height.r;
+    #else
+        return (height.r + height.g * 256.0f) / 257.0f; // (255.0f * height.r + 255.0f * 256.0f * height.g) / 65535.0f
+    #endif
+}
 
 #endif // UNITY_CG_INCLUDED

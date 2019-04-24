@@ -90,6 +90,56 @@ Shader "Particles/Standard Unlit"
 
             Pass
             {
+                Name "SceneSelectionPass"
+                Tags { "LightMode" = "SceneSelectionPass" }
+
+                BlendOp Add
+                Blend One Zero
+                ZWrite On
+                Cull Off
+
+                CGPROGRAM
+                #pragma target 2.5
+
+                #pragma shader_feature _ _ALPHATEST_ON
+                #pragma shader_feature _REQUIRE_UV2
+                #pragma multi_compile_instancing
+                #pragma instancing_options procedural:vertInstancingSetup
+
+                #pragma vertex vertEditorPass
+                #pragma fragment fragSceneHighlightPass
+
+                #include "UnityStandardParticleEditor.cginc"
+                ENDCG
+            }
+
+            Pass
+            {
+                Name "ScenePickingPass"
+                Tags{ "LightMode" = "Picking" }
+
+                BlendOp Add
+                Blend One Zero
+                ZWrite On
+                Cull Off
+
+                CGPROGRAM
+                #pragma target 2.5
+
+                #pragma shader_feature _ _ALPHATEST_ON
+                #pragma shader_feature _REQUIRE_UV2
+                #pragma multi_compile_instancing
+                #pragma instancing_options procedural:vertInstancingSetup
+
+                #pragma vertex vertEditorPass
+                #pragma fragment fragScenePickingPass
+
+                #include "UnityStandardParticleEditor.cginc"
+                ENDCG
+            }
+
+            Pass
+            {
                 Tags { "LightMode"="ForwardBase" }
 
                 CGPROGRAM
