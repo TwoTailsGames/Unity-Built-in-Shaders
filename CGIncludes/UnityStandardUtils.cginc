@@ -224,30 +224,30 @@ half3 ShadeSHPerPixel (half3 normal, half3 ambient, float3 worldPos)
 }
 
 //-------------------------------------------------------------------------------------
-inline half3 BoxProjectedCubemapDirection (half3 worldRefl, float3 worldPos, float4 cubemapCenter, float4 boxMin, float4 boxMax)
+inline float3 BoxProjectedCubemapDirection (float3 worldRefl, float3 worldPos, float4 cubemapCenter, float4 boxMin, float4 boxMax)
 {
     // Do we have a valid reflection probe?
     UNITY_BRANCH
     if (cubemapCenter.w > 0.0)
     {
-        half3 nrdir = normalize(worldRefl);
+        float3 nrdir = normalize(worldRefl);
 
         #if 1
-            half3 rbmax = (boxMax.xyz - worldPos) / nrdir;
-            half3 rbmin = (boxMin.xyz - worldPos) / nrdir;
+            float3 rbmax = (boxMax.xyz - worldPos) / nrdir;
+            float3 rbmin = (boxMin.xyz - worldPos) / nrdir;
 
-            half3 rbminmax = (nrdir > 0.0f) ? rbmax : rbmin;
+            float3 rbminmax = (nrdir > 0.0f) ? rbmax : rbmin;
 
         #else // Optimized version
-            half3 rbmax = (boxMax.xyz - worldPos);
-            half3 rbmin = (boxMin.xyz - worldPos);
+            float3 rbmax = (boxMax.xyz - worldPos);
+            float3 rbmin = (boxMin.xyz - worldPos);
 
-            half3 select = step (half3(0,0,0), nrdir);
-            half3 rbminmax = lerp (rbmax, rbmin, select);
+            float3 select = step (float3(0,0,0), nrdir);
+            float3 rbminmax = lerp (rbmax, rbmin, select);
             rbminmax /= nrdir;
         #endif
 
-        half fa = min(min(rbminmax.x, rbminmax.y), rbminmax.z);
+        float fa = min(min(rbminmax.x, rbminmax.y), rbminmax.z);
 
         worldPos -= cubemapCenter.xyz;
         worldRefl = worldPos + nrdir * fa;

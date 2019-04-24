@@ -58,7 +58,6 @@ Shader "Hidden/FrameDebuggerRenderTargetDisplay" {
     ENDCG
 
     SubShader {
-        Tags { "ForceSupported"="True" }
         Cull Off ZWrite Off ZTest Always
 
         // 2D texture

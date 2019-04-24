@@ -4,7 +4,7 @@ Shader "Legacy Shaders/Self-Illumin/VertexLit" {
 Properties {
     _Color ("Main Color", Color) = (1,1,1,1)
     _SpecColor ("Spec Color", Color) = (1,1,1,1)
-    _Shininess ("Shininess", Range (0.1, 1)) = 0.7
+    [PowerSlider(5.0)] _Shininess ("Shininess", Range (0.1, 1)) = 0.7
     _MainTex ("Base (RGB)", 2D) = "white" {}
     _Illum ("Illumin (A)", 2D) = "white" {}
     _Emission ("Emission (Lightmapper)", Float) = 1.0
@@ -52,6 +52,10 @@ SubShader {
             float4 pos : SV_POSITION;
             float2 uvMain : TEXCOORD0;
             float2 uvIllum : TEXCOORD1;
+        #ifdef EDITOR_VISUALIZATION
+            float2 vizUV : TEXCOORD2;
+            float4 lightCoord : TEXCOORD3;
+        #endif
             UNITY_VERTEX_OUTPUT_STEREO
         };
 
@@ -66,6 +70,17 @@ SubShader {
             o.pos = UnityMetaVertexPosition(v.vertex, v.texcoord1.xy, v.texcoord2.xy, unity_LightmapST, unity_DynamicLightmapST);
             o.uvMain = TRANSFORM_TEX(v.texcoord, _MainTex);
             o.uvIllum = TRANSFORM_TEX(v.texcoord, _Illum);
+        #ifdef EDITOR_VISUALIZATION
+            o.vizUV = 0;
+            o.lightCoord = 0;
+            if (unity_VisualizationMode == EDITORVIZ_TEXTURE)
+                o.vizUV = UnityMetaVizUV(unity_EditorViz_UVIndex, v.texcoord.xy, v.texcoord1.xy, v.texcoord2.xy, unity_EditorViz_Texture_ST);
+            else if (unity_VisualizationMode == EDITORVIZ_SHOWLIGHTMASK)
+            {
+                o.vizUV = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
+                o.lightCoord = mul(unity_EditorViz_WorldToLight, mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1)));
+            }
+        #endif
             return o;
         }
 
@@ -83,6 +98,10 @@ SubShader {
             fixed4 c = tex * _Color;
             metaIN.Albedo = c.rgb;
             metaIN.Emission = c.rgb * tex2D(_Illum, i.uvIllum).a;
+        #if defined(EDITOR_VISUALIZATION)
+            metaIN.VizUV = i.vizUV;
+            metaIN.LightCoord = i.lightCoord;
+        #endif
 
             return UnityMetaFragment(metaIN);
         }

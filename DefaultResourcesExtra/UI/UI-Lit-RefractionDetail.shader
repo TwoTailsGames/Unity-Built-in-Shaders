@@ -12,7 +12,7 @@ Shader "UI/Lit/Refraction Detail"
         _DetailTex ("Detail (RGB)", 2D) = "white" {}
         _DetailBump ("Detail Bump Map", 2D) = "bump" {}
         _DetailMask ("Detail Mask (Spec, Shin, Ref)", 2D) = "white" {}
-        _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
+        [PowerSlider(5.0)] _Shininess ("Shininess", Range(0.01, 1.0)) = 0.2
         _Focus ("Focus", Range(-100.0, 100.0)) = -100.0
 
         _StencilComp ("Stencil Comparison", Float) = 8
@@ -68,8 +68,8 @@ Shader "UI/Lit/Refraction Detail"
             #include "UnityCG.cginc"
             #include "UnityUI.cginc"
 
-            #pragma multi_compile __ UNITY_UI_CLIP_RECT
-            #pragma multi_compile __ UNITY_UI_ALPHACLIP
+            #pragma multi_compile_local _ UNITY_UI_CLIP_RECT
+            #pragma multi_compile_local _ UNITY_UI_ALPHACLIP
 
             struct appdata_t
             {

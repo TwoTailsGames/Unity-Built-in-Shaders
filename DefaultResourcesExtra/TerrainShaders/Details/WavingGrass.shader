@@ -20,7 +20,7 @@ SubShader {
     ColorMask RGB
 
 CGPROGRAM
-#pragma surface surf Lambert vertex:WavingGrassVert addshadow exclude_path:deferred
+#pragma surface surf Lambert vertex:WavingGrassVert addshadow fullforwardshadows exclude_path:deferred
 #include "TerrainEngine.cginc"
 
 sampler2D _MainTex;

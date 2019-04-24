@@ -27,6 +27,7 @@ uniform mat4 glstate_matrix_projection;
 #define gl_ProjectionMatrix                 glstate_matrix_projection
 
 #if __VERSION__ < 120
+#ifndef UNITY_GLSL_STRIP_TRANSPOSE
 mat3 transpose(mat3 mtx)
 {
     vec3 c0 = mtx[0];
@@ -53,6 +54,7 @@ mat4 transpose(mat4 mtx)
         vec4(c0.w, c1.w, c2.w, c3.w)
     );
 }
+#endif
 #endif // __VERSION__ < 120
 
 #endif // GLSL_SUPPORT_INCLUDED

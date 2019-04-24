@@ -32,9 +32,6 @@ Shader "Hidden/GIDebug/ShowLightMask" {
             sampler2D _LightTexture;
             sampler2D _LightTextureB;
 
-            float4 _Decode_HDR;
-            float _ConvertToLinearSpace;
-            float _StaticUV1;
             float4 _Color;
             float4 _ChannelSelect;
             float4x4 _WorldToLight;
@@ -50,14 +47,14 @@ Shader "Hidden/GIDebug/ShowLightMask" {
                 return o;
             }
 
-            fixed UnitySpotCookie(float4 LightCoord)
+            fixed UnitySpotCookie(float4 lightCoord)
             {
-                return tex2D(_LightTexture, LightCoord.xy / LightCoord.w + 0.5).w;
+                return tex2D(_LightTextureB, lightCoord.xy / lightCoord.w + 0.5).w;
             }
 
-            fixed UnitySpotAttenuate(float3 LightCoord)
+            fixed UnityDefaultAttenuate(float3 lightCoord)
             {
-                return tex2D(_LightTextureB, dot(LightCoord, LightCoord).xx).UNITY_ATTEN_CHANNEL;
+                return tex2D(_LightTexture, dot(lightCoord, lightCoord).xx).r;
             }
 
             float4 frag_surf (v2f_surf IN) : COLOR
@@ -78,12 +75,12 @@ Shader "Hidden/GIDebug/ShowLightMask" {
                 else if (_LightType == 1)
                 {
                     // point
-                    atten = tex2D(_LightTexture, dot(lightCoord.xyz, lightCoord.xyz).xx).UNITY_ATTEN_CHANNEL;
+                    atten = UnityDefaultAttenuate(lightCoord.xyz);
                 }
                 else if (_LightType == 2)
                 {
                     // spot
-                    atten = (lightCoord.z > 0) * UnitySpotCookie(lightCoord) * UnitySpotAttenuate(lightCoord.xyz);
+                    atten = (lightCoord.z > 0) * UnitySpotCookie(lightCoord) * UnityDefaultAttenuate(lightCoord.xyz);
                 }
                 clip(atten - 0.001f);
 

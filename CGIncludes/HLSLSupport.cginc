@@ -15,9 +15,9 @@
 #elif defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || (defined(UNITY_PREFER_HLSLCC) && defined(SHADER_API_GLES))
     #define UNITY_COMPILER_HLSL
     #define UNITY_COMPILER_HLSLCC
-#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_XBOXONE)
+#elif defined(SHADER_API_D3D11) || defined(SHADER_API_XBOXONE)
     #define UNITY_COMPILER_HLSL
-#elif defined(SHADER_TARGET_GLSL) || defined(SHADER_API_WIIU)
+#elif defined(SHADER_TARGET_GLSL)
     #define UNITY_COMPILER_HLSL2GLSL
 #else
     #define UNITY_COMPILER_CG
@@ -27,7 +27,7 @@
     #define UNITY_STEREO_MULTIVIEW_ENABLED
 #endif
 
-#if (defined(SHADER_API_D3D11)  || defined(SHADER_API_PSSL)) && defined(STEREO_INSTANCING_ON)
+#if (defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3)) && defined(STEREO_INSTANCING_ON)
     #define UNITY_STEREO_INSTANCING_ENABLED
 #endif
 
@@ -125,13 +125,13 @@
 #   endif
 #endif
 
-#if (defined(SHADER_API_GLES3) && !defined(SHADER_API_DESKTOP)) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_N3DS)
+#if (defined(SHADER_API_GLES3) && !defined(SHADER_API_DESKTOP)) || defined(SHADER_API_GLES) || defined(SHADER_API_N3DS)
     #define UNITY_ALLOWED_MRT_COUNT 4
 #else
     #define UNITY_ALLOWED_MRT_COUNT 8
 #endif
 
-#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLES) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_N3DS)
+#if (SHADER_TARGET < 30) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLES) || defined(SHADER_API_N3DS)
     //no fast coherent dynamic branching on these hardware
 #else
     #define UNITY_FAST_COHERENT_DYNAMIC_BRANCHING 1
@@ -164,8 +164,14 @@
 #define sampler3D_half sampler3D
 #define Texture2D_half Texture2D
 #define Texture2D_float Texture2D
+#define Texture2DArray_half Texture2DArray
+#define Texture2DArray_float Texture2DArray
+#define Texture2DMS_half Texture2DMS
+#define Texture2DMS_float Texture2DMS
 #define TextureCube_half TextureCube
 #define TextureCube_float TextureCube
+#define TextureCubeArray_half TextureCubeArray
+#define TextureCubeArray_float TextureCubeArray
 #define Texture3D_float Texture3D
 #define Texture3D_half Texture3D
 #endif
@@ -210,7 +216,7 @@
 // This allows people to use min16float and friends in their shader code if they
 // really want to (making that will make shaders not load before DX11.1, e.g. on Win7,
 // but if they target WSA/WP exclusively that's fine).
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !(defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) && !defined(SHADER_API_SWITCH)
+#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_GLES3) && !defined(SHADER_API_VULKAN) && !defined(SHADER_API_METAL) && !(defined(SHADER_API_GLES) && defined(UNITY_COMPILER_HLSLCC)) && !defined(SHADER_API_SWITCH)
 #define min16float half
 #define min16float2 half2
 #define min16float3 half3
@@ -254,13 +260,6 @@
 #define asuint(x) asint(x)
 #endif
 
-#if defined(SHADER_API_PSP2)
-// The PSP2 cg compiler does not define uint<N>
-#define uint2 unsigned int2
-#define uint3 unsigned int3
-#define uint4 unsigned int4
-#endif
-
 // specifically for samplers that are provided as arguments to entry functions
 #if defined(SHADER_API_PSSL)
 #define SAMPLER_UNIFORM uniform
@@ -270,9 +269,13 @@
 #endif
 
 #if defined(SHADER_API_PSSL)
+// variable modifiers
+#define nointerpolation nointerp
+#define noperspective nopersp
+
 #define CBUFFER_START(name) ConstantBuffer name {
 #define CBUFFER_END };
-#elif defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X)
+#elif defined(SHADER_API_D3D11)
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
 #else
@@ -281,7 +284,7 @@
 #define CBUFFER_END
 #endif
 
-#if defined(UNITY_STEREO_MULTIVIEW_ENABLED) || (defined(UNITY_SINGLE_PASS_STEREO) && (defined(SHADER_API_GLCORE) || defined(SHADER_API_METAL)))
+#if defined(UNITY_STEREO_MULTIVIEW_ENABLED) || ((defined(UNITY_SINGLE_PASS_STEREO) || defined(UNITY_STEREO_INSTANCING_ENABLED)) && (defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_METAL)))
     #define GLOBAL_CBUFFER_START(name)    cbuffer name {
     #define GLOBAL_CBUFFER_END            }
 #else
@@ -304,34 +307,7 @@
 #define UNITY_REQUIRE_ADVANCED_BLEND(mode)
 #endif
 
-
-#if defined(SHADER_API_PSP2)
-    // For tex2Dproj the PSP2 cg compiler doesn't like casting half3/4 to
-    // float3/4 with swizzle (optimizer generates invalid assembly), so declare
-    // explicit versions for half3/4
-    half4 tex2Dproj(sampler2D s, in half3 t)        { return tex2D(s, t.xy / t.z); }
-    half4 tex2Dproj(sampler2D s, in half4 t)        { return tex2D(s, t.xy / t.w); }
-
-    // As above but for sampling from single component textures, e.g. depth textures.
-    // NOTE that hardware PCF does not work with these versions, currently we have to ensure
-    // that tex coords for shadow sampling use float, not half; and for some reason casting half
-    // to float and using tex2Dproj also does not work.
-    half4 tex2DprojShadow(sampler2D s, in half3 t)      { return tex2D<float>(s, t.xy / t.z); }
-    half4 tex2DprojShadow(sampler2D s, in half4 t)      { return tex2D<float>(s, t.xy / t.w); }
-
-    // ...and versions of tex2DprojShadow for float uv.
-    half4 tex2DprojShadow(sampler2D s, in float3 t)     { return tex2Dproj<float>(s, t); }
-    half4 tex2DprojShadow(sampler2D s, in float4 t)     { return tex2Dproj<float>(s, t); }
-#endif
-
-
-#if defined(SHADER_API_PSP2)
-#define UNITY_BUGGY_TEX2DPROJ4
-#define UNITY_PROJ_COORD(a) (a).xyw
-#else
 #define UNITY_PROJ_COORD(a) a
-#endif
-
 
 // Depth texture sampling helpers.
 // On most platforms you can just sample them, but some (e.g. PSP2) need special handling.
@@ -340,17 +316,6 @@
 // SAMPLE_DEPTH_TEXTURE_PROJ(sampler,uv): projected sample
 // SAMPLE_DEPTH_TEXTURE_LOD(sampler,uv): sample with LOD level
 
-#if defined(SHADER_API_PSP2)
-    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float4 uv) { return tex2D<float>(s, (float3)uv); }
-    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float3 uv) { return tex2D<float>(s, uv); }
-    half4 SAMPLE_DEPTH_TEXTURE(sampler2D s, float2 uv) { return tex2D<float>(s, uv); }
-#   define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (tex2DprojShadow(sampler, uv))
-#   define SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv) (tex2Dlod<float>(sampler, uv))
-#   define SAMPLE_RAW_DEPTH_TEXTURE(sampler, uv) SAMPLE_DEPTH_TEXTURE(sampler, uv)
-#   define SAMPLE_RAW_DEPTH_TEXTURE_PROJ(sampler, uv) SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv)
-#   define SAMPLE_RAW_DEPTH_TEXTURE_LOD(sampler, uv) SAMPLE_DEPTH_TEXTURE_LOD(sampler, uv)
-    half4 SAMPLE_DEPTH_CUBE_TEXTURE(samplerCUBE s, float3 uv) { return texCUBE<float>(s, uv); }
-#else
     // Sample depth, just the red component.
 #   define SAMPLE_DEPTH_TEXTURE(sampler, uv) (tex2D(sampler, uv).r)
 #   define SAMPLE_DEPTH_TEXTURE_PROJ(sampler, uv) (tex2Dproj(sampler, uv).r)
@@ -360,14 +325,9 @@
 #   define SAMPLE_RAW_DEPTH_TEXTURE_PROJ(sampler, uv) (tex2Dproj(sampler, uv))
 #   define SAMPLE_RAW_DEPTH_TEXTURE_LOD(sampler, uv) (tex2Dlod(sampler, uv))
 #   define SAMPLE_DEPTH_CUBE_TEXTURE(sampler, uv) (texCUBE(sampler, uv).r)
-#endif
 
 // Deprecated; use SAMPLE_DEPTH_TEXTURE & SAMPLE_DEPTH_TEXTURE_PROJ instead
-#if defined(SHADER_API_PSP2)
-#   define UNITY_SAMPLE_DEPTH(value) (value).r
-#else
-#   define UNITY_SAMPLE_DEPTH(value) (value).r
-#endif
+#define UNITY_SAMPLE_DEPTH(value) (value).r
 
 
 // Macros to declare and sample shadow maps.
@@ -385,18 +345,10 @@
     #define SHADOWS_NATIVE
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || (defined(UNITY_COMPILER_HLSLCC) && defined(SHADOWS_NATIVE))
+#if defined(SHADER_API_D3D11) || (defined(UNITY_COMPILER_HLSLCC) && defined(SHADOWS_NATIVE))
     // DX11 & hlslcc platforms: built-in PCF
-    #if defined(SHADER_API_D3D11_9X)
-        // FL9.x has some bug where the runtime really wants resource & sampler to be bound to the same slot,
-        // otherwise it is skipping draw calls that use shadowmap sampling. Let's bind to #15
-        // and hope all works out.
-        #define UNITY_DECLARE_SHADOWMAP(tex) Texture2D tex : register(t15); SamplerComparisonState sampler##tex : register(s15)
-        #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube tex : register(t15); SamplerComparisonState sampler##tex : register(s15)
-    #else
-        #define UNITY_DECLARE_SHADOWMAP(tex) Texture2D tex; SamplerComparisonState sampler##tex
-        #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube tex; SamplerComparisonState sampler##tex
-    #endif
+    #define UNITY_DECLARE_SHADOWMAP(tex) Texture2D tex; SamplerComparisonState sampler##tex
+    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) TextureCube tex; SamplerComparisonState sampler##tex
     #define UNITY_SAMPLE_SHADOW(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy,(coord).z)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLevelZero (sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
     #if defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
@@ -412,16 +364,6 @@
     #define UNITY_SAMPLE_SHADOW(tex,coord) shadow2D (tex,(coord).xyz)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) shadow2Dproj (tex,coord)
     #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) ((texCUBE(tex,(coord).xyz) < (coord).w) ? 0.0 : 1.0)
-#elif defined(SHADER_API_D3D9)
-    // D3D9: Native shadow maps FOURCC "driver hack", looks just like a regular
-    // texture sample. Have to always do a projected sample
-    // so that HLSL compiler doesn't try to be too smart and mess up swizzles
-    // (thinking that Z is unused).
-    #define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
-    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) samplerCUBE tex
-    #define UNITY_SAMPLE_SHADOW(tex,coord) tex2Dproj (tex,float4((coord).xyz,1)).r
-    #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2Dproj (tex,coord).r
-    #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) (texCUBEproj(tex,coord).r)
 #elif defined(SHADER_API_PSSL)
     // PS4: built-in PCF
     #define UNITY_DECLARE_SHADOWMAP(tex)        Texture2D tex; SamplerComparisonState sampler##tex
@@ -429,15 +371,6 @@
     #define UNITY_SAMPLE_SHADOW(tex,coord)      tex.SampleCmpLOD0(sampler##tex,(coord).xy,(coord).z)
     #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex.SampleCmpLOD0(sampler##tex,(coord).xy/(coord).w,(coord).z/(coord).w)
     #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) tex.SampleCmpLOD0(sampler##tex,(coord).xyz,(coord).w)
-#elif defined(SHADER_API_PSP2)
-    // Vita
-    #define UNITY_DECLARE_SHADOWMAP(tex) sampler2D tex
-    #define UNITY_DECLARE_TEXCUBE_SHADOWMAP(tex) samplerCUBE tex
-    // tex2d shadow comparison on Vita returns 0 instead of 1 when shadowCoord.z >= 1 causing artefacts in some tests.
-    // Clamping Z to the range 0.0 <= Z < 1.0 solves this.
-    #define UNITY_SAMPLE_SHADOW(tex,coord) tex2D<float>(tex, float3((coord).xy, clamp((coord).z, 0.0, 0.999999)))
-    #define UNITY_SAMPLE_SHADOW_PROJ(tex,coord) tex2DprojShadow(tex, coord)
-    #define UNITY_SAMPLE_TEXCUBE_SHADOW(tex,coord) texCUBE<float>(tex, float3((coord).xyz, clamp((coord).w, 0.0, 0.999999)))
 #else
     // Fallback / No built-in shadowmap comparison sampling: regular texture sample and do manual depth comparison
     #define UNITY_DECLARE_SHADOWMAP(tex) sampler2D_float tex
@@ -463,6 +396,8 @@
     // Note: for surface shader analysis, go into DX11 syntax path when non-mojoshader part of analysis is done,
     // this allows surface shaders to use _NOSAMPLER and similar macros, without using up a sampler register.
     // Don't do that for mojoshader part, as that one can only parse DX9 style HLSL.
+
+    #define UNITY_SEPARATE_TEXTURE_SAMPLER
 
     // 2D textures
     #define UNITY_DECLARE_TEX2D(tex) Texture2D tex; SamplerState sampler##tex
@@ -563,15 +498,8 @@
     #define UNITY_DECLARE_TEXCUBE_NOSAMPLER(tex) samplerCUBE tex
     #define UNITY_SAMPLE_TEXCUBE(tex,coord) texCUBE (tex,coord)
 
-    // DX11 FL 9.x do not have texture LOD sampling.
-    // We will approximate that with mip bias (very poor approximation, but not much we can do)
-    #if defined(SHADER_API_D3D11_9X)
-    #   define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) texCUBEbias(tex, half4(coord, lod))
-    #   define UNITY_SAMPLE_TEXCUBE_SAMPLER_LOD(tex,samplertex,coord,lod) UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod)
-    #else
-    #   define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) texCUBElod (tex, half4(coord, lod))
-    #   define UNITY_SAMPLE_TEXCUBE_SAMPLER_LOD(tex,samplertex,coord,lod) UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod)
-    #endif
+    #define UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod) texCUBElod (tex, half4(coord, lod))
+    #define UNITY_SAMPLE_TEXCUBE_SAMPLER_LOD(tex,samplertex,coord,lod) UNITY_SAMPLE_TEXCUBE_LOD(tex,coord,lod)
     #define UNITY_SAMPLE_TEXCUBE_SAMPLER(tex,samplertex,coord) texCUBE (tex,coord)
 
     // 3D textures
@@ -651,27 +579,18 @@
 #endif
 
 
-#if !defined(SHADER_API_D3D11) && !defined(SHADER_API_D3D11_9X) && !defined(UNITY_COMPILER_HLSLCC) && !defined(SHADER_API_PSSL)
+#if !defined(SHADER_API_D3D11) && !defined(UNITY_COMPILER_HLSLCC) && !defined(SHADER_API_PSSL)
 #define SV_POSITION POSITION
 #endif
 
 
-// Declare position that is also available for read in fragment shader
-#if defined(SHADER_API_PSP2) && defined(SHADER_STAGE_FRAGMENT) && SHADER_TARGET >= 30
-#define UNITY_POSITION(pos) float4 pos : VPOS
-#else
 // On D3D reading screen space coordinates from fragment shader requires SM3.0
 #define UNITY_POSITION(pos) float4 pos : SV_POSITION
-#endif
 
-
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL)
+// Kept for backwards-compatibility
 #define UNITY_ATTEN_CHANNEL r
-#else
-#define UNITY_ATTEN_CHANNEL a
-#endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D11_9X) || defined(SHADER_API_PSP2) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_WIIU) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_PSSL) || defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN) || defined(SHADER_API_SWITCH)
 #define UNITY_UV_STARTS_AT_TOP 1
 #endif
 
@@ -682,8 +601,6 @@
 
 #if defined(UNITY_REVERSED_Z)
 #define UNITY_NEAR_CLIP_VALUE (1.0)
-#elif defined(SHADER_API_WIIU) || defined(SHADER_API_D3D11_9X)
-#define UNITY_NEAR_CLIP_VALUE (0.0)
 #else
 #define UNITY_NEAR_CLIP_VALUE (-1.0)
 #endif
@@ -696,19 +613,11 @@
 // UNITY_ENABLE_REFLECTION_BUFFERS - render reflection probes in deferred way, when using deferred shading
 
 
-#if defined(SHADER_API_PSP2)
-// To get acceptable precision from the SGX interpolators when decoding RGBM type
-// textures we have to disable sRGB reads and then convert to gamma space in the shader
-// explicitly.
-#define UNITY_FORCE_LINEAR_READ_FOR_RGBM
-#endif
-
-
 // On most platforms, use floating point render targets to store depth of point
 // light shadowmaps. However, on some others they either have issues, or aren't widely
 // supported; in which case fallback to encoding depth into RGBA channels.
 // Make sure this define matches GraphicsCaps.useRGBAForPointShadows.
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_PSP2)
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3)
 #define UNITY_USE_RGBA_FOR_POINT_SHADOWS
 #endif
 
@@ -761,7 +670,7 @@
 #endif
 
 // define use to identify platform with modern feature like texture 3D with filtering, texture array etc...
-#define UNITY_SM40_PLUS_PLATFORM (!((SHADER_TARGET < 30) || defined (SHADER_API_MOBILE) || defined(SHADER_API_D3D11_9X) || defined (SHADER_API_PSP2) || defined(SHADER_API_GLES)))
+#define UNITY_SM40_PLUS_PLATFORM (!((SHADER_TARGET < 30) || defined (SHADER_API_MOBILE) || defined(SHADER_API_GLES)))
 
 // Ability to manually set descriptor set and binding numbers (Vulkan only)
 #if defined(SHADER_API_VULKAN)

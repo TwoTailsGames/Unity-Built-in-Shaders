@@ -6,15 +6,15 @@
 // NOTE: had to split shadow functions into separate file,
 // otherwise compiler gives trouble with LIGHTING_COORDS macro (in UnityStandardCore.cginc)
 
+#if _REQUIRE_UV2
+#define _FLIPBOOK_BLENDING 1
+#endif
+
 #include "UnityCG.cginc"
 #include "UnityShaderVariables.cginc"
 #include "UnityStandardConfig.cginc"
 #include "UnityStandardUtils.cginc"
 #include "UnityStandardParticleInstancing.cginc"
-
-#if _REQUIRE_UV2
-    #define _FLIPBOOK_BLENDING 1
-#endif
 
 #if (defined(_ALPHABLEND_ON) || defined(_ALPHAPREMULTIPLY_ON)) && defined(UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS)
     #define UNITY_STANDARD_USE_DITHER_MASK 1
@@ -122,7 +122,12 @@ void vertParticleShadowCaster (VertexInput v,
                 o.texcoord2AndBlend.z = v.texcoordBlend;
             #endif
         #else
-            o.texcoord = TRANSFORM_TEX(v.texcoords.xy, _MainTex);
+            #ifdef UNITY_PARTICLE_INSTANCING_ENABLED
+                vertInstancingUVs(v.texcoords.xy, o.texcoord);
+                o.texcoord = TRANSFORM_TEX(o.texcoord, _MainTex);
+            #else
+                o.texcoord = TRANSFORM_TEX(v.texcoords.xy, _MainTex);
+            #endif
         #endif
         o.color = v.color;
     #endif
@@ -140,7 +145,7 @@ half4 fragParticleShadowCaster (
     #ifdef UNITY_STANDARD_USE_SHADOW_UVS
         half alpha = tex2D(_MainTex, i.texcoord).a;
         #ifdef _FLIPBOOK_BLENDING
-            half alpha2 = tex2D(_MainTex, i.texcoord2AndBlend.xy);
+            half alpha2 = tex2D(_MainTex, i.texcoord2AndBlend.xy).a;
             alpha = lerp(alpha, alpha2, i.texcoord2AndBlend.z);
         #endif
         alpha *= i.color.a;
