@@ -11,6 +11,8 @@ Shader "Hidden/VideoDecodeOSX"
 
             GLSLPROGRAM
 
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
+
             uniform sampler2DRect _MainTex;
 
             #ifdef VERTEX
@@ -26,7 +28,7 @@ Shader "Hidden/VideoDecodeOSX"
 
             vec4 AdjustForColorSpace(vec4 color)
             {
-            #ifdef UNITY_COLORSPACE_GAMMA
+            #if defined(UNITY_COLORSPACE_GAMMA) || !defined(ADJUST_TO_LINEARSPACE)
                 return color;
             #else
                 // Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
@@ -51,6 +53,8 @@ Shader "Hidden/VideoDecodeOSX"
             ZTest Always Cull Off ZWrite Off Blend Off
             GLSLPROGRAM
 
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
+
             uniform sampler2DRect _MainTex;
 
             #ifdef VERTEX
@@ -68,7 +72,7 @@ Shader "Hidden/VideoDecodeOSX"
 
             vec4 AdjustForColorSpace(vec4 color)
             {
-            #ifdef UNITY_COLORSPACE_GAMMA
+            #if defined(UNITY_COLORSPACE_GAMMA) || !defined(ADJUST_TO_LINEARSPACE)
                 return color;
             #else
                 // Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1

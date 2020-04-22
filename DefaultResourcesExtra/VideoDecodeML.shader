@@ -15,6 +15,8 @@ ENDGLSL
 
             GLSLPROGRAM
 
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
+
             #extension GL_OES_EGL_image_external : require
             #pragma glsl_es2
 
@@ -37,7 +39,7 @@ ENDGLSL
 
             vec4 AdjustForColorSpace(vec4 color)
             {
-            #ifdef UNITY_COLORSPACE_GAMMA
+            #if defined(UNITY_COLORSPACE_GAMMA) || !defined(ADJUST_TO_LINEARSPACE)
                 return color;
             #else
                 // Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1
@@ -65,6 +67,8 @@ ENDGLSL
 
             GLSLPROGRAM
 
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
+
             #extension GL_OES_EGL_image_external : require
             #pragma glsl_es2
             uniform vec4 _MainTex_ST;
@@ -85,7 +89,7 @@ ENDGLSL
 
             vec4 AdjustForColorSpace(vec4 color)
             {
-            #ifdef UNITY_COLORSPACE_GAMMA
+            #if defined(UNITY_COLORSPACE_GAMMA) || !defined(ADJUST_TO_LINEARSPACE)
                 return color;
             #else
                 // Approximate version from http://chilliant.blogspot.com.au/2012/08/srgb-approximations-for-hlsl.html?m=1

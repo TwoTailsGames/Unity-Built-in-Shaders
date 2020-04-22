@@ -4,6 +4,7 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-AddPass" {
     Properties {
         _SpecColor ("Specular Color", Color) = (0.5, 0.5, 0.5, 1)
         [PowerSlider(5.0)] _Shininess ("Shininess", Range (0.03, 1)) = 0.078125
+        [HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {}
     }
 
     SubShader {
@@ -17,10 +18,9 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-AddPass" {
         #pragma surface surf BlinnPhong decal:add vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer fullforwardshadows nometa
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma multi_compile_fog
-        #pragma multi_compile __ _NORMALMAP
+        #pragma multi_compile_local __ _ALPHATEST_ON
+        #pragma multi_compile_local __ _NORMALMAP
         #pragma target 3.0
-        // needs more than 8 texcoords
-        #pragma exclude_renderers gles
 
         #define TERRAIN_SPLAT_ADDPASS
         #include "TerrainSplatmapCommon.cginc"

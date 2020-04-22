@@ -34,7 +34,7 @@
     #define UNITY_FORCE_MAX_INSTANCE_COUNT 1
 #endif
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_GLCORE) || defined(SHADER_API_GLES3) || defined(SHADER_API_VULKAN)
     #define UNITY_SUPPORT_STEREO_INSTANCING
 #endif
 

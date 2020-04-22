@@ -53,7 +53,7 @@ float3 TerrainObjectToWorldPosition(float3 objectPosition)
 // function to build a procedural quad mesh
 // based on the quad resolution defined by _QuadRez
 // returns integer positions, starting with (0, 0), and ending with (_QuadRez.xy - 1)
-float3 _QuadRez;    // quads X, quads Y, vertexCount
+float4 _QuadRez;    // quads X, quads Y, vertexCount, vertSkip
 float2 BuildProceduralQuadMeshVertex(uint vertexID)
 {
     int quadIndex = vertexID / 6;                       // quad index, each quad is made of 6 vertices
@@ -68,7 +68,7 @@ float2 BuildProceduralQuadMeshVertex(uint vertexID)
     float vX = sequence[vertIndex];
     float vY = sequence[5 - vertIndex];     // vY is just vX reversed
     float2 coord = float2(qX + vX, qY + vY);
-    return coord;
+    return coord * _QuadRez.w;
 }
 
 

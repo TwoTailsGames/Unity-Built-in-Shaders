@@ -13,6 +13,7 @@ Shader "Hidden/VR/BlitFromTex2DToTexArraySlice"
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 3.5
+            #pragma require setrtarrayindexfromanyshader
             #pragma exclude_renderers vulkan metal
 
             #include "UnityCG.cginc"
@@ -47,7 +48,10 @@ Shader "Hidden/VR/BlitFromTex2DToTexArraySlice"
             }
             ENDCG
         }
+    }
 
+    SubShader
+    {
         Pass
         {
             ZTest Always Cull Off ZWrite Off
@@ -117,5 +121,6 @@ Shader "Hidden/VR/BlitFromTex2DToTexArraySlice"
             ENDCG
         }
     }
+
     Fallback Off
 }

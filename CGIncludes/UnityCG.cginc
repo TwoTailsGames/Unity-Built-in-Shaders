@@ -830,9 +830,9 @@ inline float4 UnityPixelSnap (float4 pos)
 {
     float2 hpc = _ScreenParams.xy * 0.5f;
 #if  SHADER_API_PSSL
-// sdk 4.5 splits round into v_floor_f32(x+0.5) ... sdk 5.0 uses v_rndne_f32, for compatabilty we use the 4.5 version
+// An old sdk used to implement round() as floor(x+0.5) current sdks use the round to even method so we manually use the old method here for compatabilty.
     float2 temp = ((pos.xy / pos.w) * hpc) + float2(0.5f,0.5f);
-    float2 pixelPos = float2(__v_floor_f32(temp.x), __v_floor_f32(temp.y));
+    float2 pixelPos = float2(floor(temp.x), floor(temp.y));
 #else
     float2 pixelPos = round ((pos.xy / pos.w) * hpc);
 #endif
@@ -1103,12 +1103,13 @@ float4 UnityApplyLinearShadowBias(float4 clipPos)
 
 #ifdef LOD_FADE_CROSSFADE
     #define UNITY_APPLY_DITHER_CROSSFADE(vpos)  UnityApplyDitherCrossFade(vpos)
-    sampler2D _DitherMaskLOD2D;
+    sampler2D unity_DitherMask;
     void UnityApplyDitherCrossFade(float2 vpos)
     {
         vpos /= 4; // the dither mask texture is 4x4
-        vpos.y = frac(vpos.y) * 0.0625 /* 1/16 */ + unity_LODFade.y; // quantized lod fade by 16 levels
-        clip(tex2D(_DitherMaskLOD2D, vpos).a - 0.5);
+        float mask = tex2D(unity_DitherMask, vpos).a;
+        float sgn = unity_LODFade.x > 0 ? 1.0f : -1.0f;
+        clip(unity_LODFade.x - mask * sgn);
     }
 #else
     #define UNITY_APPLY_DITHER_CROSSFADE(vpos)

@@ -1,6 +1,9 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
 Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
+    Properties{
+        [HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {}
+    }
     CGINCLUDE
         #pragma surface surf Lambert decal:add vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer fullforwardshadows nometa
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
@@ -31,7 +34,8 @@ Shader "Hidden/TerrainEngine/Splatmap/Diffuse-AddPass" {
         SubShader { // for sm3.0+ targets
             CGPROGRAM
                 #pragma target 3.0
-                #pragma multi_compile __ _NORMALMAP
+                #pragma multi_compile_local __ _ALPHATEST_ON
+                #pragma multi_compile_local __ _NORMALMAP
             ENDCG
         }
         SubShader { // for sm2.0 targets

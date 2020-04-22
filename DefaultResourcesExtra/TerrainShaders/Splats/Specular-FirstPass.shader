@@ -8,6 +8,8 @@ Shader "Nature/Terrain/Specular" {
         // used in fallback on old cards & base map
         [HideInInspector] _MainTex ("BaseMap (RGB)", 2D) = "white" {}
         [HideInInspector] _Color ("Main Color", Color) = (1,1,1,1)
+
+        [HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {}
     }
 
     SubShader {
@@ -20,10 +22,9 @@ Shader "Nature/Terrain/Specular" {
         #pragma surface surf BlinnPhong vertex:SplatmapVert finalcolor:SplatmapFinalColor finalprepass:SplatmapFinalPrepass finalgbuffer:SplatmapFinalGBuffer addshadow fullforwardshadows
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma multi_compile_fog
-        #pragma multi_compile __ _NORMALMAP
+        #pragma multi_compile_local __ _ALPHATEST_ON
+        #pragma multi_compile_local __ _NORMALMAP
         #pragma target 3.0
-        // needs more than 8 texcoords
-        #pragma exclude_renderers gles
 
         #include "TerrainSplatmapCommon.cginc"
 

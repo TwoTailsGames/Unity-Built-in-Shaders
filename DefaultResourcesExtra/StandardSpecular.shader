@@ -71,7 +71,7 @@ Shader "Standard (Specular setup)"
 
             // -------------------------------------
 
-            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _EMISSION
             #pragma shader_feature_local _SPECGLOSSMAP
@@ -109,7 +109,7 @@ Shader "Standard (Specular setup)"
 
             // -------------------------------------
 
-            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _SPECGLOSSMAP
             #pragma shader_feature_local _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
@@ -172,7 +172,7 @@ Shader "Standard (Specular setup)"
 
             // -------------------------------------
 
-            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _EMISSION
             #pragma shader_feature_local _SPECGLOSSMAP
@@ -237,7 +237,7 @@ Shader "Standard (Specular setup)"
             CGPROGRAM
             #pragma target 2.0
 
-            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _EMISSION
             #pragma shader_feature_local _SPECGLOSSMAP
@@ -272,7 +272,7 @@ Shader "Standard (Specular setup)"
             CGPROGRAM
             #pragma target 2.0
 
-            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _SPECGLOSSMAP
             #pragma shader_feature_local _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A

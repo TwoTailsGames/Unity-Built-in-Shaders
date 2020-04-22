@@ -8,6 +8,8 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
 
         // used in fallback on old cards
         _Color ("Main Color", Color) = (1,1,1,1)
+
+        [HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {}
     }
 
     SubShader {
@@ -21,6 +23,8 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
         #pragma surface surf BlinnPhong vertex:SplatmapVert addshadow fullforwardshadows
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
 
+        #pragma multi_compile_local __ _ALPHATEST_ON
+
         #define TERRAIN_BASE_PASS
         #define TERRAIN_SURFACE_OUTPUT SurfaceOutput
         #include "TerrainSplatmapCommon.cginc"
@@ -29,6 +33,9 @@ Shader "Hidden/TerrainEngine/Splatmap/Specular-Base" {
         half _Shininess;
 
         void surf (Input IN, inout SurfaceOutput o) {
+            #ifdef _ALPHATEST_ON
+                ClipHoles(IN.tc.xy);
+            #endif
             fixed4 tex = tex2D(_MainTex, IN.tc.xy);
             o.Albedo = tex.rgb;
             o.Gloss = tex.a;

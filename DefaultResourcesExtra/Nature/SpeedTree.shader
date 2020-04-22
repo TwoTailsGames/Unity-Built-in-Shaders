@@ -21,7 +21,7 @@ Shader "Nature/SpeedTree"
         {
             "Queue"="Geometry"
             "IgnoreProjector"="True"
-            "RenderType"="Opaque"
+            "RenderType"="TransparentCutout"
             "DisableBatching"="LODFading"
         }
         LOD 400
@@ -161,7 +161,7 @@ Shader "Nature/SpeedTree"
         {
             "Queue"="Geometry"
             "IgnoreProjector"="True"
-            "RenderType"="Opaque"
+            "RenderType"="TransparentCutout"
             "DisableBatching"="LODFading"
         }
         LOD 400

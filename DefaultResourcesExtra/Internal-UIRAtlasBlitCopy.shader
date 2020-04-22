@@ -17,7 +17,7 @@ Shader "Hidden/Internal-UIRAtlasBlitCopy"
     {
         Pass
         {
-            ZTest Always Cull Off ZWrite Off
+            ZTest Always Cull Off ZWrite Off Blend Off
 
             CGPROGRAM
             #pragma vertex vert
@@ -52,12 +52,14 @@ Shader "Hidden/Internal-UIRAtlasBlitCopy"
             {
                 float4 vertex : POSITION;
                 float3 texcoord : TEXCOORD0;
+                float4 tint : COLOR;
             };
 
             struct v2f
             {
                 float4 vertex : SV_POSITION;
                 float3 texcoord : TEXCOORD0;
+                float4 tint : COLOR;
             };
 
             v2f vert (appdata_t v)
@@ -95,6 +97,7 @@ Shader "Hidden/Internal-UIRAtlasBlitCopy"
                     break;
                 }
                 o.texcoord.z = v.texcoord.z;
+                o.tint = v.tint;
                 return o;
             }
 
@@ -128,7 +131,7 @@ Shader "Hidden/Internal-UIRAtlasBlitCopy"
                     color = tex2D(_MainTex7, i.texcoord.xy);
                     break;
                 }
-                return color;
+                return color * i.tint;
             }
             ENDCG
         }

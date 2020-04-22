@@ -21,7 +21,7 @@ Shader "Hidden/VideoDecode"
 
         inline fixed4 AdjustForColorSpace(fixed4 color)
         {
-#ifdef UNITY_COLORSPACE_GAMMA
+#if defined(UNITY_COLORSPACE_GAMMA) || !defined(ADJUST_TO_LINEARSPACE)
             return color;
 #else
             return fixed4(GammaToLinearSpace(color.rgb), color.a);
@@ -246,6 +246,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexDirect
             #pragma fragment fragmentRGBOne
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -257,6 +258,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexDirect
             #pragma fragment fragmentRGB_FullAlpha
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -268,6 +270,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexDirect
             #pragma fragment fragmentRGBA
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -279,6 +282,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentRGBANormal
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -290,6 +294,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentRGBASplit
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -301,6 +306,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentSemiPRGBOne
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -312,6 +318,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentSemiPRGBA
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -323,6 +330,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentNV12RGBOne
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 
@@ -334,6 +342,7 @@ Shader "Hidden/VideoDecode"
             CGPROGRAM
             #pragma vertex vertexFlip
             #pragma fragment fragmentNV12RGBA
+            #pragma multi_compile_local _ ADJUST_TO_LINEARSPACE
             ENDCG
         }
 

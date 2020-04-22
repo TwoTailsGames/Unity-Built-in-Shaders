@@ -290,7 +290,7 @@ SubShader {
             }
 
         #if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
-            OUT.vertex          = -v.vertex;
+            OUT.vertex          = -eyeRay;
         #elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
             OUT.rayDir          = half3(-eyeRay);
         #else
@@ -364,7 +364,7 @@ SubShader {
         // if y >= 0 and < 1 [eyeRay.y <= 0 and > -SKY_GROUND_THRESHOLD] - horizon
         // if y < 0 [eyeRay.y > 0] - sky
         #if SKYBOX_SUNDISK == SKYBOX_SUNDISK_HQ
-            half3 ray = normalize(mul((float3x3)unity_ObjectToWorld, IN.vertex));
+            half3 ray = normalize(IN.vertex.xyz);
             half y = ray.y / SKY_GROUND_THRESHOLD;
         #elif SKYBOX_SUNDISK == SKYBOX_SUNDISK_SIMPLE
             half3 ray = IN.rayDir.xyz;

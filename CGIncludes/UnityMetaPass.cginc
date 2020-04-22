@@ -57,6 +57,7 @@ uniform half4 unity_EditorViz_Decode_HDR;
 uniform bool unity_EditorViz_ConvertToLinearSpace;
 uniform half4 unity_EditorViz_ColorMul;
 uniform half4 unity_EditorViz_ColorAdd;
+uniform half unity_EditorViz_Exposure;
 uniform sampler2D unity_EditorViz_LightTexture;
 uniform sampler2D unity_EditorViz_LightTextureB;
 #define unity_EditorViz_ChannelSelect unity_EditorViz_ColorMul
@@ -329,6 +330,7 @@ half4 UnityMetaFragment (UnityMetaInput IN)
 
         res *= unity_EditorViz_ColorMul;
         res += unity_EditorViz_ColorAdd;
+        res *= exp2(unity_EditorViz_Exposure);
     }
     else if (unity_VisualizationMode == EDITORVIZ_SHOWLIGHTMASK)
     {

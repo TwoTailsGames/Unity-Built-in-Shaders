@@ -108,7 +108,7 @@ half UnityComputeForwardShadows(float2 lightmapUV, float3 worldPos, float4 scree
     return UnityMixRealtimeAndBakedShadows(realtimeShadowAttenuation, shadowMaskAttenuation, realtimeToBakedShadowFade);
 }
 
-#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D12) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL)
+#if defined(SHADER_API_D3D11) || defined(SHADER_API_D3D12) || defined(SHADER_API_XBOXONE) || defined(SHADER_API_PSSL) || defined(UNITY_COMPILER_HLSLCC)
 #   define UNITY_SHADOW_W(_w) _w
 #else
 #   define UNITY_SHADOW_W(_w) (1.0/_w)

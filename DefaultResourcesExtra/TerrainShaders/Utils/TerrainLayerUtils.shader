@@ -16,11 +16,12 @@ Shader "Hidden/TerrainEngine/TerrainLayerUtils" {
 
             float4 _LayerMask;
             sampler2D _MainTex;
+            float4 _MainTex_ST;             // scale, offset
             float4 _MainTex_TexelSize;      // 1/width, 1/height, width, height
 
         ENDCG
 
-        Pass    // Select one channel and copy it into R channel
+        Pass    // 0 = Select one channel and copy it into R channel
         {
             Name "Get Terrain Layer Channel"
 
@@ -53,7 +54,7 @@ Shader "Hidden/TerrainEngine/TerrainLayerUtils" {
             ENDCG
         }
 
-        Pass    // Copy the R channel of the input into a specific channel in the output, and renormalize the other channels
+        Pass    // 1 = Copy the R channel of the input into a specific channel in the output, and renormalize the other channels
         {
             Name "Set Terrain Layer Channel"
 
@@ -96,7 +97,8 @@ Shader "Hidden/TerrainEngine/TerrainLayerUtils" {
                 float4 origAlphaMap = tex2D(_AlphaMapTexture, i.uvTerrain);
 
                 // old alpha of the target channel (according to the current terrain tile)
-                float origTarget = tex2D(_OldAlphaMapTexture, i.uvPC).r;
+                float4 origTargetSample = tex2D(_OriginalTargetAlphaMap, i.uvTerrain);
+                float origTarget = dot(origTargetSample, _OriginalTargetAlphaMask);
 
                 // new alpha of the target channel (according to PaintContext destRenderTexture)
                 float newTarget = tex2D(_MainTex, i.uvPC).r;
@@ -117,6 +119,38 @@ Shader "Hidden/TerrainEngine/TerrainLayerUtils" {
             ENDCG
         }
 
+        Pass    // 2 = Copy only sampling the highest mip
+        {
+            Name "Blit Copy Highest Mip"
+
+            CGPROGRAM
+            #pragma target 2.0
+            #pragma vertex vert
+            #pragma fragment CopyHighestMip
+
+            struct appdata_t {
+                float4 vertex : POSITION;
+                float2 texcoord : TEXCOORD0;
+            };
+            struct v2f {
+                float4 vertex : SV_POSITION;
+                float2 texcoord : TEXCOORD0;
+            };
+            v2f vert(appdata_t v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.texcoord = v.texcoord;
+                return o;
+            }
+            float4 CopyHighestMip(v2f i) : SV_Target
+            {
+                float2 uv = i.texcoord * _MainTex_ST.xy + _MainTex_ST.zw;
+                float4 layerWeights = tex2Dbias(_MainTex, float4(uv, 0.0f, -15.0f));
+                return layerWeights;
+            }
+            ENDCG
+        }
     }
     Fallback Off
 }

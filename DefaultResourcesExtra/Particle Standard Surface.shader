@@ -146,7 +146,7 @@ Shader "Particles/Standard Surface"
 
         #pragma shader_feature_local _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON _ALPHAMODULATE_ON
         #pragma shader_feature_local _METALLICGLOSSMAP
-        #pragma shader_feature _NORMALMAP
+        #pragma shader_feature_local _NORMALMAP
         #pragma shader_feature _EMISSION
         #pragma shader_feature_local _FADING_ON
         #pragma shader_feature_local _REQUIRE_UV2

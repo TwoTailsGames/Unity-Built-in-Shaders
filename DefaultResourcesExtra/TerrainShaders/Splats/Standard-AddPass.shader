@@ -1,6 +1,9 @@
 // Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
 Shader "Hidden/TerrainEngine/Splatmap/Standard-AddPass" {
+    Properties{
+        [HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {}
+    }
     SubShader {
         Tags {
             "Queue" = "Geometry-99"
@@ -13,11 +16,10 @@ Shader "Hidden/TerrainEngine/Splatmap/Standard-AddPass" {
         #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap forwardadd
         #pragma multi_compile_fog
         #pragma target 3.0
-        // needs more than 8 texcoords
-        #pragma exclude_renderers gles
         #include "UnityPBSLighting.cginc"
 
-        #pragma multi_compile __ _NORMALMAP
+        #pragma multi_compile_local __ _ALPHATEST_ON
+        #pragma multi_compile_local __ _NORMALMAP
 
         #define TERRAIN_SPLAT_ADDPASS
         #define TERRAIN_STANDARD_SHADER
