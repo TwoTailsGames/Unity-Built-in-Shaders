@@ -261,7 +261,7 @@ float3 GlobalWind(float3 vPos, float3 vInstancePos, bool bPreserveShape, float3 
         float fAdjust = max(vPos.y - (1.0 / _ST_WindGlobal.z) * 0.25, 0.0) * _ST_WindGlobal.z;
     #endif
     if (fAdjust != 0.0)
-        fAdjust = pow(fAdjust, _ST_WindGlobal.w);
+        fAdjust = pow(abs(fAdjust), _ST_WindGlobal.w);
 
     // primary oscillation
     float4 vOscillations = TrigApproximate(float4(vInstancePos.x + time, vInstancePos.y + time * 0.8, 0.0, 0.0));
