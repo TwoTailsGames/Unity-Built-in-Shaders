@@ -48,6 +48,12 @@ uniform vec4 _LightPositionRange; // xyz = pos, w = 1/range
 #define USING_LIGHT_MULTI_COMPILE
 #endif
 
+// Computes object space view direction
+vec3 ObjSpaceViewDir( vec4 v )
+{
+    vec3 objSpaceCameraPos = (unity_WorldToObject * vec4(_WorldSpaceCameraPos.xyz, 1.0)).xyz;
+    return objSpaceCameraPos - v.xyz;
+}
 
 #ifdef VERTEX
 
@@ -85,13 +91,6 @@ vec3 ObjSpaceLightDir( vec4 v )
 vec3 WorldSpaceViewDir( vec4 v )
 {
     return _WorldSpaceCameraPos.xyz - (unity_ObjectToWorld * v).xyz;
-}
-
-// Computes object space view direction
-vec3 ObjSpaceViewDir( vec4 v )
-{
-    vec3 objSpaceCameraPos = (unity_WorldToObject * vec4(_WorldSpaceCameraPos.xyz, 1.0)).xyz;
-    return objSpaceCameraPos - v.xyz;
 }
 
 // Declares 3x3 matrix 'rotation', filled with tangent space basis
